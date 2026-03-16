@@ -9,7 +9,43 @@
             <h2>Invite Links</h2>
             <p class="subtitle">One-time registration links funded with 10 PAT from treasury</p>
         </div>
-        <a href="{% url 'invite_create' %}" class="btn btn-primary">+ New Invite</a>
+        <a href="{% url 'invite_create' %}" class="btn {% if invite_funding.can_create_invite %}btn-primary{% else %}btn-secondary{% endif %}">+ New Invite</a>
+    </div>
+</div>
+
+{% if not invite_funding.existing_invites_funded %}
+<div class="validation-fail animate-in mb-3">
+    <strong>Invite treasury shortfall detected</strong>
+    Open invite liability is {{ invite_funding.outstanding_liability|patcoin }} PAT, but treasury only holds {{ invite_funding.treasury_balance|patcoin }} PAT.
+    Shortfall: {{ invite_funding.shortfall|patcoin }} PAT.
+</div>
+{% elif not invite_funding.can_create_invite %}
+<div class="alert alert-warning animate-in mb-3">
+    Treasury can still cover existing invites, but not another new one.
+    Available after current open invites: {{ invite_funding.available_after_liability|patcoin }} PAT.
+</div>
+{% endif %}
+
+<div class="stats-grid">
+    <div class="stat-card animate-in delay-1">
+        <div class="stat-label">Treasury Balance</div>
+        <div class="stat-value accent">{{ invite_funding.treasury_balance|patcoin }}</div>
+        <div class="stat-sub">PAT available</div>
+    </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-label">Open Invite Liability</div>
+        <div class="stat-value">{{ invite_funding.outstanding_liability|patcoin }}</div>
+        <div class="stat-sub">{{ invite_funding.open_invite_count }} open invite{{ invite_funding.open_invite_count|pluralize }}</div>
+    </div>
+    <div class="stat-card animate-in delay-3">
+        <div class="stat-label">Remaining Coverage</div>
+        <div class="stat-value {% if invite_funding.available_after_liability < 0 %}text-danger{% else %}success{% endif %}">{{ invite_funding.available_after_liability|patcoin }}</div>
+        <div class="stat-sub">PAT after honoring open invites</div>
+    </div>
+    <div class="stat-card animate-in delay-4">
+        <div class="stat-label">Next Invite</div>
+        <div class="stat-value">{% if invite_funding.can_create_invite %}Ready{% else %}Blocked{% endif %}</div>
+        <div class="stat-sub">Requires {{ invite_funding.next_invite_bonus|patcoin }} PAT</div>
     </div>
 </div>
 

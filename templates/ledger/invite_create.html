@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load ledger_tags %}
 
 {% block title %}Create Invite &mdash; PatCoin{% endblock %}
 
@@ -10,10 +10,19 @@
 </div>
 
 <div class="card form-card animate-in">
+    {% if not invite_funding.can_create_invite %}
+    <div class="alert alert-warning">
+        Treasury cannot cover another invite bonus right now.
+        Open invite liability: {{ invite_funding.outstanding_liability|patcoin }} PAT.
+        Treasury balance: {{ invite_funding.treasury_balance|patcoin }} PAT.
+    </div>
+    {% endif %}
+
     {% if form.errors %}
     <div class="alert alert-error">
+        {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
         {% for field, errors in form.errors.items %}
-            {% for error in errors %}<div>{{ error }}</div>{% endfor %}
+            {% if field != '__all__' %}{% for error in errors %}<div>{{ error }}</div>{% endfor %}{% endif %}
         {% endfor %}
     </div>
     {% endif %}
@@ -29,8 +38,29 @@
             <div style="font-size:1.25rem; font-weight:700;">10.00 PAT</div>
             <div class="text-dim" style="margin-top:0.35rem; font-size:0.85rem;">Funded from the treasury and sealed into the chain when the invite is used.</div>
         </div>
+        <div class="card" style="margin:1rem 0; background:rgba(255,255,255,0.03);">
+            <div class="form-label">Treasury Coverage</div>
+            <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.75rem; margin-top:0.5rem;">
+                <div>
+                    <div class="text-dim" style="font-size:0.8rem;">Treasury</div>
+                    <div style="font-weight:700;">{{ invite_funding.treasury_balance|patcoin }} PAT</div>
+                </div>
+                <div>
+                    <div class="text-dim" style="font-size:0.8rem;">Open Invite Liability</div>
+                    <div style="font-weight:700;">{{ invite_funding.outstanding_liability|patcoin }} PAT</div>
+                </div>
+                <div>
+                    <div class="text-dim" style="font-size:0.8rem;">Open Invites</div>
+                    <div style="font-weight:700;">{{ invite_funding.open_invite_count }}</div>
+                </div>
+                <div>
+                    <div class="text-dim" style="font-size:0.8rem;">Available After Liability</div>
+                    <div style="font-weight:700;">{{ invite_funding.available_after_liability|patcoin }} PAT</div>
+                </div>
+            </div>
+        </div>
         <div class="btn-group mt-2">
-            <button type="submit" class="btn btn-primary">Generate Invite</button>
+            <button type="submit" class="btn btn-primary" {% if not invite_funding.can_create_invite %}disabled aria-disabled="true"{% endif %}>Generate Invite</button>
             <a href="{% url 'invite_list' %}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>

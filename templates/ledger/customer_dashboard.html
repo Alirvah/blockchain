@@ -35,6 +35,30 @@
     </div>
 </div>
 
+<div class="grid-2 mb-3">
+    <div class="card animate-in">
+        <div class="card-header">
+            <span class="card-title">Receive PatCoin</span>
+        </div>
+        <div class="qr-panel">
+            <div>
+                <div id="walletReceiveQr" class="qr-canvas" data-address="{{ wallet.address }}"></div>
+                <div class="qr-caption">Scan to autofill this wallet address</div>
+            </div>
+            <div class="qr-meta">
+                <div class="form-label">PatCoin URI</div>
+                <div class="hash hash-full" id="walletReceiveUri">patcoin:{{ wallet.address }}</div>
+                <div class="form-label mt-2">Wallet Address</div>
+                <div class="hash hash-full">{{ wallet.address }}</div>
+                <div class="btn-group mt-2">
+                    <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('{{ wallet.address }}')">Copy Address</button>
+                    <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('patcoin:{{ wallet.address }}')">Copy URI</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="section animate-in">
     <div class="section-header">
         <h3 class="section-title">Recent Transfers</h3>
@@ -80,5 +104,40 @@
         <p>You don't have a wallet yet. Please contact an administrator to create one for you.</p>
     </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if wallet %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+function copyPatcoinValue(value) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value);
+    } else {
+        const temp = document.createElement('textarea');
+        temp.value = value;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const qrEl = document.getElementById('walletReceiveQr');
+    if (!qrEl) return;
+
+    const address = qrEl.dataset.address;
+    new QRCode(qrEl, {
+        text: 'patcoin:' + address,
+        width: 180,
+        height: 180,
+        colorDark: '#e8eaf0',
+        colorLight: '#1c1f2e',
+        correctLevel: QRCode.CorrectLevel.M,
+    });
+});
+</script>
 {% endif %}
 {% endblock %}

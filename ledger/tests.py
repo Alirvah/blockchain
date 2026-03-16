@@ -333,6 +333,42 @@ class InviteFlowTest(TestCase):
         self.assertEqual(invite.bonus_amount, Decimal("10.00"))
         self.assertEqual(invite.created_by, self.admin)
 
+    def test_admin_cannot_create_invite_when_treasury_cannot_cover_new_liability(self):
+        self.client.login(username="admin", password="admin")
+        treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
+        treasury_depletion = Wallet.objects.create(label="Drain", wallet_type=Wallet.CUSTOMER)
+        Transfer.objects.create(
+            sender=treasury,
+            recipient=treasury_depletion,
+            amount=Decimal("999995.00"),
+            status=Transfer.CONFIRMED,
+        )
+
+        response = self.client.post(reverse("invite_create"), {"note": "Should fail"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(InviteLink.objects.count(), 0)
+        self.assertContains(response, "Treasury cannot safely cover another invite bonus")
+
+    def test_admin_cannot_create_invite_when_existing_open_invites_already_use_remaining_coverage(self):
+        self.client.login(username="admin", password="admin")
+        treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
+        treasury_depletion = Wallet.objects.create(label="Drain", wallet_type=Wallet.CUSTOMER)
+        Transfer.objects.create(
+            sender=treasury,
+            recipient=treasury_depletion,
+            amount=Decimal("999980.00"),
+            status=Transfer.CONFIRMED,
+        )
+        InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
+        InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
+
+        response = self.client.post(reverse("invite_create"), {"note": "Third invite blocked"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(InviteLink.objects.count(), 2)
+        self.assertContains(response, "Treasury cannot safely cover another invite bonus")
+
     def test_invite_registration_creates_wallet_and_bonus(self):
         invite = InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
         treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
@@ -380,6 +416,23 @@ class InviteFlowTest(TestCase):
         second = anonymous_client.get(reverse("invite_register", args=[invite.token]))
         self.assertEqual(second.status_code, 410)
         self.assertContains(second, "no longer available", status_code=410)
+
+    def test_invite_list_shows_shortfall_warning(self):
+        self.client.login(username="admin", password="admin")
+        treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
+        treasury_depletion = Wallet.objects.create(label="Drain", wallet_type=Wallet.CUSTOMER)
+        Transfer.objects.create(
+            sender=treasury,
+            recipient=treasury_depletion,
+            amount=Decimal("999995.00"),
+            status=Transfer.CONFIRMED,
+        )
+        InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
+
+        response = self.client.get(reverse("invite_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invite treasury shortfall detected")
 
 
 class ViewRenderTest(TestCase):
@@ -474,3 +527,34 @@ class ViewRenderTest(TestCase):
         self.assertContains(response, "Git Anchor")
         self.assertContains(response, "Mismatch")
         self.assertContains(response, "Mismatch warning.")
+
+
+class CustomerQrRenderTest(TestCase):
+    def setUp(self):
+        call_command("bootstrap_genesis")
+        self.user = User.objects.create_user("qruser", password="test-pass-123")
+        self.wallet = Wallet.objects.create(
+            label="QR Wallet",
+            wallet_type=Wallet.CUSTOMER,
+            owner=self.user,
+        )
+        self.client = Client()
+        self.client.login(username="qruser", password="test-pass-123")
+
+    def test_customer_dashboard_shows_receive_qr_section(self):
+        response = self.client.get(reverse("dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Receive PatCoin")
+        self.assertContains(response, "patcoin:")
+
+    def test_customer_send_shows_qr_scan_actions(self):
+        response = self.client.get(reverse("customer_send"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Scan QR")
+        self.assertContains(response, "Scan Image")
+
+    def test_wallet_detail_shows_receive_qr_section(self):
+        response = self.client.get(reverse("wallet_detail", args=[self.wallet.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Receive QR")
+        self.assertContains(response, "Copy URI")

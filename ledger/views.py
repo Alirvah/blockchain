@@ -75,6 +75,30 @@ def issue_signup_bonus(wallet, invite):
     return transfer, block
 
 
+def get_invite_funding_status():
+    treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
+    treasury_balance = treasury.balance if treasury else Decimal("0")
+    open_invites = InviteLink.objects.filter(is_active=True, used_at__isnull=True)
+    outstanding_liability = (
+        open_invites.aggregate(total=models.Sum("bonus_amount"))["total"]
+        or Decimal("0")
+    )
+    available_after_liability = treasury_balance - outstanding_liability
+    shortfall = max(Decimal("0"), outstanding_liability - treasury_balance)
+
+    return {
+        "treasury": treasury,
+        "treasury_balance": treasury_balance,
+        "open_invite_count": open_invites.count(),
+        "outstanding_liability": outstanding_liability,
+        "available_after_liability": available_after_liability,
+        "shortfall": shortfall,
+        "can_create_invite": treasury_balance >= (outstanding_liability + INVITE_BONUS_AMOUNT),
+        "existing_invites_funded": treasury_balance >= outstanding_liability,
+        "next_invite_bonus": INVITE_BONUS_AMOUNT,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Dashboard (role-based)
 # ---------------------------------------------------------------------------
@@ -96,6 +120,7 @@ def admin_dashboard(request):
     pending_transfers = Transfer.objects.filter(status=Transfer.PENDING).count()
     recent_transfers = Transfer.objects.select_related("sender", "recipient")[:10]
     recent_blocks = Block.objects.all()[:5]
+    invite_funding = get_invite_funding_status()
 
     return render(request, "ledger/admin_dashboard.html", {
         "total_supply": total_supply,
@@ -106,6 +131,7 @@ def admin_dashboard(request):
         "pending_transfers": pending_transfers,
         "recent_transfers": recent_transfers,
         "recent_blocks": recent_blocks,
+        "invite_funding": invite_funding,
     })
 
 
@@ -209,7 +235,14 @@ def invite_list(request):
         }
         for invite in invites
     ]
-    return render(request, "ledger/invite_list.html", {"invite_rows": invite_rows})
+    return render(
+        request,
+        "ledger/invite_list.html",
+        {
+            "invite_rows": invite_rows,
+            "invite_funding": get_invite_funding_status(),
+        },
+    )
 
 
 @login_required
@@ -217,20 +250,31 @@ def invite_create(request):
     if not request.user.is_staff:
         return redirect("dashboard")
 
+    invite_funding = get_invite_funding_status()
     form = InviteCreateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        invite = InviteLink.objects.create(
-            note=form.cleaned_data.get("note", ""),
-            bonus_amount=INVITE_BONUS_AMOUNT,
-            created_by=request.user,
-        )
-        messages.success(
-            request,
-            f"Invite link created. Bonus: {invite.bonus_amount:,.2f} PAT.",
-        )
-        return redirect("invite_list")
+        if not invite_funding["can_create_invite"]:
+            form.add_error(
+                None,
+                "Treasury cannot safely cover another invite bonus. Fund treasury or use existing open invites first.",
+            )
+        else:
+            invite = InviteLink.objects.create(
+                note=form.cleaned_data.get("note", ""),
+                bonus_amount=INVITE_BONUS_AMOUNT,
+                created_by=request.user,
+            )
+            messages.success(
+                request,
+                f"Invite link created. Bonus: {invite.bonus_amount:,.2f} PAT.",
+            )
+            return redirect("invite_list")
 
-    return render(request, "ledger/invite_create.html", {"form": form})
+    return render(
+        request,
+        "ledger/invite_create.html",
+        {"form": form, "invite_funding": invite_funding},
+    )
 
 
 def invite_register(request, token):

@@ -54,12 +54,17 @@ class Command(BaseCommand):
             # Create default admin user if none exists
             if not User.objects.filter(is_superuser=True).exists():
                 User.objects.create_superuser(
-                    username="admin",
-                    email="admin@patcoin.local",
-                    password="admin",
+                    username=settings.BOOTSTRAP_ADMIN_USERNAME,
+                    email=settings.BOOTSTRAP_ADMIN_EMAIL,
+                    password=settings.BOOTSTRAP_ADMIN_PASSWORD,
                     is_staff=True,
                 )
-                self.stdout.write(self.style.SUCCESS("Created admin user (admin/admin)"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        "Created bootstrap admin user "
+                        f"({settings.BOOTSTRAP_ADMIN_USERNAME}) from environment settings"
+                    )
+                )
 
         self.stdout.write(
             self.style.SUCCESS(

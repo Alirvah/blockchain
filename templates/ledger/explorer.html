@@ -100,7 +100,11 @@
             </div>
             {% if anchor_report.git.commit_short %}
             <div class="text-dim text-mono" style="font-size:0.8rem;">
+                {% if anchor_report.git.commit_url %}
+                <a href="{{ anchor_report.git.commit_url }}" target="_blank" rel="noopener noreferrer" class="text-mono">Commit {{ anchor_report.git.commit_short }}</a>
+                {% else %}
                 Commit {{ anchor_report.git.commit_short }}
+                {% endif %}
             </div>
             {% endif %}
         </div>
@@ -143,11 +147,42 @@
             </div>
         </div>
 
+        <div class="grid-2 mt-2" style="gap:1rem;">
+            <div>
+                <div class="form-label">Anchored Project</div>
+                <div class="text-dim">
+                    {% if anchor_report.git.project_url %}
+                    <a href="{{ anchor_report.git.project_url }}" target="_blank" rel="noopener noreferrer">{{ anchor_report.git.project_url }}</a>
+                    {% elif anchor_report.git.remote_url %}
+                    {{ anchor_report.git.remote_url }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="form-label">Anchored Commit</div>
+                <div class="text-dim text-mono">
+                    {% if anchor_report.git.commit_url %}
+                    <a href="{{ anchor_report.git.commit_url }}" target="_blank" rel="noopener noreferrer" class="text-mono">{{ anchor_report.git.commit_sha }}</a>
+                    {% elif anchor_report.git.commit_sha %}
+                    {{ anchor_report.git.commit_sha }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
         {% if anchor_report.git.remote_url %}
         <div class="mt-2">
             <div class="form-label">Remote URL</div>
             <div class="hash hash-full">{{ anchor_report.git.remote_url }}</div>
         </div>
+        {% endif %}
+
+        {% if anchor_report.git.remote_check_error %}
+        <div class="alert alert-warning mt-2">{{ anchor_report.git.remote_check_error }}</div>
         {% endif %}
 
         {% if anchor_report.mismatches %}

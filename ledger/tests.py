@@ -17,6 +17,7 @@ from .genesis_anchor import (
     STATUS_MISMATCH,
     STATUS_REMOTE_UNVERIFIED,
     STATUS_VALID,
+    get_git_anchor_metadata,
     get_anchor_manifest_path,
     get_genesis_anchor_report,
 )
@@ -294,6 +295,26 @@ class GenesisAnchorTest(TestCase):
         report = get_genesis_anchor_report()
         self.assertEqual(report["status"], STATUS_MISMATCH)
         self.assertTrue(any("treasury_wallet.address" in mismatch for mismatch in report["mismatches"]))
+
+    @mock.patch("ledger.genesis_anchor._verify_commit_url_online")
+    @mock.patch("ledger.genesis_anchor._run_git")
+    def test_git_anchor_metadata_derives_project_and_commit_links(self, run_git_mock, verify_mock):
+        manifest_path = get_anchor_manifest_path()
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text("{}", encoding="utf-8")
+
+        verify_mock.return_value = (True, None)
+        run_git_mock.side_effect = [
+            mock.Mock(returncode=0, stdout=f"{settings.BASE_DIR}\n", stderr=""),
+            mock.Mock(returncode=0, stdout="a" * 40 + "\nabc1234\n1710000000\nanchor genesis\n", stderr=""),
+            mock.Mock(returncode=0, stdout="https://github.com/Alirvah/blockchain.git\n", stderr=""),
+        ]
+
+        metadata = get_git_anchor_metadata(manifest_path)
+
+        self.assertEqual(metadata["project_url"], "https://github.com/Alirvah/blockchain")
+        self.assertEqual(metadata["commit_url"], f"https://github.com/Alirvah/blockchain/commit/{'a' * 40}")
+        self.assertTrue(metadata["remote_verified"])
 
 
 class InviteFlowTest(TestCase):

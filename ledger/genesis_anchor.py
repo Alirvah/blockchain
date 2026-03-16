@@ -4,6 +4,9 @@ import json
 import subprocess
 from decimal import Decimal
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 from typing import Any
 
 from django.conf import settings
@@ -146,6 +149,59 @@ def _run_git(*args: str) -> subprocess.CompletedProcess[str] | None:
         return None
 
 
+def _normalize_remote_web_url(remote_url: str | None) -> str | None:
+    if not remote_url:
+        return None
+
+    remote_url = remote_url.strip()
+    if remote_url.startswith("git@"):
+        host_and_path = remote_url.split("git@", 1)[1]
+        host, _, repo_path = host_and_path.partition(":")
+        if host and repo_path:
+            normalized = f"https://{host}/{repo_path}"
+        else:
+            return None
+    elif remote_url.startswith("http://") or remote_url.startswith("https://"):
+        normalized = remote_url
+    else:
+        return None
+
+    if normalized.endswith(".git"):
+        normalized = normalized[:-4]
+    return normalized.rstrip("/")
+
+
+def _build_commit_url(project_url: str | None, commit_sha: str | None) -> str | None:
+    if not project_url or not commit_sha:
+        return None
+
+    parsed = urlparse(project_url)
+    host = parsed.netloc.lower()
+    if "github.com" in host or "gitlab.com" in host:
+        return f"{project_url}/commit/{commit_sha}"
+    return None
+
+
+def _verify_commit_url_online(commit_url: str | None) -> tuple[bool, str | None]:
+    if not commit_url:
+        return False, "Remote commit URL is unavailable for online verification."
+
+    request = Request(
+        commit_url,
+        headers={"User-Agent": "PatCoin-Genesis-Anchor/1.0"},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            if 200 <= response.status < 400:
+                return True, None
+            return False, f"Remote commit URL responded with HTTP {response.status}."
+    except HTTPError as exc:
+        return False, f"Remote commit URL responded with HTTP {exc.code}."
+    except URLError as exc:
+        return False, f"Remote commit URL could not be reached: {exc.reason}."
+
+
 def get_git_anchor_metadata(manifest_path: Path | None = None) -> dict[str, Any]:
     manifest_path = manifest_path or get_anchor_manifest_path()
     repo_check = _run_git("rev-parse", "--show-toplevel")
@@ -160,7 +216,10 @@ def get_git_anchor_metadata(manifest_path: Path | None = None) -> dict[str, Any]
             "commit_timestamp": None,
             "remote_name": None,
             "remote_url": None,
+            "project_url": None,
+            "commit_url": None,
             "remote_verified": False,
+            "remote_check_error": None,
         }
 
     repo_root = Path(repo_check.stdout.strip())
@@ -180,19 +239,21 @@ def get_git_anchor_metadata(manifest_path: Path | None = None) -> dict[str, Any]
 
     remote_name = None
     remote_url = None
+    project_url = None
+    commit_url = None
     remote_verified = False
+    remote_check_error = None
     remote_info = _run_git("remote", "get-url", "origin")
     if remote_info and remote_info.returncode == 0:
         remote_name = "origin"
         remote_url = remote_info.stdout.strip() or None
+        project_url = _normalize_remote_web_url(remote_url)
+        commit_url = _build_commit_url(project_url, commit_sha)
 
-    if remote_url and commit_sha:
-        contains = _run_git("branch", "-r", "--contains", commit_sha)
-        if contains and contains.returncode == 0:
-            remote_verified = any(
-                line.strip().startswith("origin/")
-                for line in contains.stdout.splitlines()
-            )
+    if commit_url and commit_sha:
+        remote_verified, remote_check_error = _verify_commit_url_online(commit_url)
+    elif remote_url and commit_sha:
+        remote_check_error = "Remote repository is configured, but the app could not derive a public commit URL for online verification."
 
     return {
         "git_available": True,
@@ -204,7 +265,10 @@ def get_git_anchor_metadata(manifest_path: Path | None = None) -> dict[str, Any]
         "commit_timestamp": commit_timestamp,
         "remote_name": remote_name,
         "remote_url": remote_url,
+        "project_url": project_url,
+        "commit_url": commit_url,
         "remote_verified": remote_verified,
+        "remote_check_error": remote_check_error,
     }
 
 
@@ -250,9 +314,9 @@ def get_genesis_anchor_report() -> dict[str, Any]:
 def get_anchor_status_message(report: dict[str, Any]) -> str:
     status = report["status"]
     if status == STATUS_VALID:
-        return "Live genesis matches the committed manifest, and the anchor commit is visible from a remote Git history."
+        return "Live genesis matches the committed manifest, and the anchor commit was verified against the remote repository online."
     if status == STATUS_REMOTE_UNVERIFIED:
-        return "Live genesis matches the local Git anchor, but no pushed remote copy of that anchor commit could be confirmed yet."
+        return "Live genesis matches the local Git anchor, but the app could not confirm that anchor commit exists on the remote repository online."
     if status == STATUS_GIT_UNAVAILABLE:
         return "Live genesis matches the manifest, but Git metadata is unavailable on this server."
     if status == STATUS_ANCHOR_MISSING:

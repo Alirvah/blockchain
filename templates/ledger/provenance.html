@@ -85,14 +85,48 @@
             {% if anchor_report.git.commit_short %}
             <div class="mt-2">
                 <div class="form-label">Anchor Commit</div>
-                <div class="text-mono text-dim">{{ anchor_report.git.commit_short }}{% if anchor_report.git.commit_subject %} &bull; {{ anchor_report.git.commit_subject }}{% endif %}</div>
+                <div class="text-mono text-dim">
+                    {% if anchor_report.git.commit_url %}
+                    <a href="{{ anchor_report.git.commit_url }}" target="_blank" rel="noopener noreferrer" class="text-mono">{{ anchor_report.git.commit_short }}</a>
+                    {% else %}
+                    {{ anchor_report.git.commit_short }}
+                    {% endif %}
+                    {% if anchor_report.git.commit_subject %} &bull; {{ anchor_report.git.commit_subject }}{% endif %}
+                </div>
             </div>
             {% endif %}
+            <div class="mt-2">
+                <div class="form-label">Anchored Project</div>
+                <div class="text-dim">
+                    {% if anchor_report.git.project_url %}
+                    <a href="{{ anchor_report.git.project_url }}" target="_blank" rel="noopener noreferrer">{{ anchor_report.git.project_url }}</a>
+                    {% elif anchor_report.git.remote_url %}
+                    {{ anchor_report.git.remote_url }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </div>
+            </div>
+            <div class="mt-2">
+                <div class="form-label">Anchored Commit URL</div>
+                <div class="text-dim text-mono">
+                    {% if anchor_report.git.commit_url %}
+                    <a href="{{ anchor_report.git.commit_url }}" target="_blank" rel="noopener noreferrer" class="text-mono">{{ anchor_report.git.commit_url }}</a>
+                    {% elif anchor_report.git.commit_sha %}
+                    {{ anchor_report.git.commit_sha }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </div>
+            </div>
             {% if anchor_report.git.remote_url %}
             <div class="mt-2">
                 <div class="form-label">Remote URL</div>
                 <div class="hash hash-full">{{ anchor_report.git.remote_url }}</div>
             </div>
+            {% endif %}
+            {% if anchor_report.git.remote_check_error %}
+            <div class="alert alert-warning mt-2">{{ anchor_report.git.remote_check_error }}</div>
             {% endif %}
             {% if anchor_report.mismatches %}
             <div class="validation-fail mt-2">

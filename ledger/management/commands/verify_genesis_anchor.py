@@ -29,8 +29,15 @@ class Command(BaseCommand):
         else:
             self.stdout.write("Git metadata unavailable.")
 
+        if git.get("project_url"):
+            self.stdout.write(f"Project URL: {git['project_url']}")
+        if git.get("commit_url"):
+            self.stdout.write(f"Commit URL: {git['commit_url']}")
         if git.get("remote_url"):
             self.stdout.write(f"Remote: {git['remote_url']}")
+        if git.get("remote_check_error"):
+            self.stdout.write(f"Remote check: {git['remote_check_error']}")
+
 
         if report["mismatches"]:
             self.stdout.write("Mismatches:")

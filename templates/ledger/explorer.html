@@ -1,0 +1,308 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Explorer &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h2>PatCoin Explorer</h2>
+    <p class="subtitle">Real-time ledger overview and chain metrics</p>
+</div>
+
+<!-- Supply Metrics -->
+<div class="stats-grid">
+    <div class="stat-card animate-in delay-1">
+        <div class="stat-label">Total Supply</div>
+        <div class="stat-value">{{ total_supply|patcoin }}</div>
+        <div class="stat-sub">PAT minted at genesis</div>
+    </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-label">Treasury</div>
+        <div class="stat-value accent">{{ treasury_balance|patcoin }}</div>
+        <div class="stat-sub">PAT in reserve</div>
+    </div>
+    <div class="stat-card animate-in delay-3">
+        <div class="stat-label">Circulating</div>
+        <div class="stat-value success">{{ circulating|patcoin }}</div>
+        <div class="stat-sub">PAT distributed</div>
+    </div>
+    <div class="stat-card animate-in delay-4">
+        <div class="stat-label">Active Wallets</div>
+        <div class="stat-value">{{ active_wallets }}</div>
+        <div class="stat-sub">Customer wallets</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Supply Distribution Chart -->
+    <div class="section animate-in">
+        <div class="section-header">
+            <h3 class="section-title">Supply Distribution</h3>
+        </div>
+        <div class="card">
+            <div class="chart-container">
+                <canvas id="supplyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chain Status -->
+    <div class="section animate-in">
+        <div class="section-header">
+            <h3 class="section-title">Chain Status</h3>
+        </div>
+        <div class="card">
+            {% if chain_valid %}
+            <div class="validation-pass mb-2">
+                &#10003; Chain integrity verified &mdash; all hashes valid
+            </div>
+            {% else %}
+            <div class="validation-fail mb-2">
+                <strong>&#10007; Chain integrity issues detected</strong>
+                {% for err in chain_errors %}
+                <div class="error-item">{{ err }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+                <div>
+                    <div class="text-muted" style="font-size:0.75rem;">Chain Height</div>
+                    <div style="font-size:1.5rem;font-weight:700;">{% if chain_tip %}{{ chain_tip.index }}{% else %}0{% endif %}</div>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:0.75rem;">Pending TXs</div>
+                    <div style="font-size:1.5rem;font-weight:700;">
+                        {{ pending_count }}
+                        {% if pending_count %}<span class="badge badge-pending" style="margin-left:0.25rem;">queue</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if chain_tip %}
+            <div class="mt-2">
+                <div class="text-muted" style="font-size:0.75rem;">Latest Block Hash</div>
+                <div class="hash hash-full mt-1">{{ chain_tip.block_hash }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Genesis Anchor</h3>
+    </div>
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <div>
+                <div class="form-label">Trust Status</div>
+                <span class="badge {{ anchor_report.status|anchor_status_badge_class }}">{{ anchor_report.status|anchor_status_label }}</span>
+            </div>
+            {% if anchor_report.git.commit_short %}
+            <div class="text-dim text-mono" style="font-size:0.8rem;">
+                Commit {{ anchor_report.git.commit_short }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mt-2 text-dim" style="font-size:0.9rem;">{{ anchor_status_message }}</div>
+
+        <div class="grid-2 mt-2" style="gap:1rem;">
+            <div>
+                <div class="form-label">Anchored Genesis Hash</div>
+                <div class="hash hash-full">
+                    {% if anchor_report.anchor %}{{ anchor_report.anchor.block.block_hash }}{% else %}—{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="form-label">Live Database Hash</div>
+                <div class="hash hash-full">
+                    {% if anchor_report.live %}{{ anchor_report.live.block.block_hash }}{% else %}—{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2 mt-2" style="gap:1rem;">
+            <div>
+                <div class="form-label">Manifest Path</div>
+                <div class="text-mono text-dim">{{ anchor_report.manifest_path }}</div>
+            </div>
+            <div>
+                <div class="form-label">Remote Verification</div>
+                <div class="text-dim">
+                    {% if anchor_report.git.remote_verified %}
+                        Confirmed via {{ anchor_report.git.remote_name }}
+                    {% elif anchor_report.git.remote_url %}
+                        Remote configured but anchor commit not confirmed on remote branches yet
+                    {% elif anchor_report.git.git_available %}
+                        Local Git only; add and push `origin` for stronger assurance
+                    {% else %}
+                        Git metadata unavailable on this server
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if anchor_report.git.remote_url %}
+        <div class="mt-2">
+            <div class="form-label">Remote URL</div>
+            <div class="hash hash-full">{{ anchor_report.git.remote_url }}</div>
+        </div>
+        {% endif %}
+
+        {% if anchor_report.mismatches %}
+        <div class="validation-fail mt-2">
+            <strong>Genesis mismatch detected</strong>
+            {% for mismatch in anchor_report.mismatches %}
+            <div class="error-item">{{ mismatch }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Chain Visualization -->
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Block Chain</h3>
+        <a href="{% url 'block_list' %}" class="btn btn-sm btn-secondary">View all</a>
+    </div>
+    <div class="card">
+        <div class="chain-viz">
+            {% for block in recent_blocks reversed %}
+            {% if not forloop.first %}<div class="chain-link"></div>{% endif %}
+            <a href="{% url 'block_detail' block.id %}" class="chain-block" style="text-decoration:none;">
+                <div class="chain-block-node {{ block.status }}">
+                    {% if block.status == "genesis" %}G{% else %}#{{ block.index }}{% endif %}
+                </div>
+                <div class="chain-block-label">{{ block.block_hash|hash_short:8 }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Recent Confirmed Transfers -->
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Recent Confirmed Transfers</h3>
+    </div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>TX Hash</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Amount</th>
+                    <th>Block</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in recent_transfers %}
+                <tr>
+                    <td class="text-mono">{{ tx.tx_hash|hash_short }}</td>
+                    <td>{% if tx.sender %}{{ tx.sender.label }}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>
+                    <td>{{ tx.recipient.label }}</td>
+                    <td class="text-accent">{{ tx.amount|patcoin }} PAT</td>
+                    <td>{% if tx.block %}<a href="{% url 'block_detail' tx.block.id %}">#{{ tx.block.index }}</a>{% endif %}</td>
+                    <td class="text-dim">{{ tx.created_at|time_ago }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">No confirmed transfers yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Block Timeline Chart -->
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Block Activity</h3>
+    </div>
+    <div class="card">
+        <div class="chart-container" style="height:250px;">
+            <canvas id="blockChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Supply doughnut
+    const supplyCtx = document.getElementById('supplyChart');
+    if (supplyCtx) {
+        new Chart(supplyCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Treasury', 'Circulating'],
+                datasets: [{
+                    data: [{{ treasury_balance }}, {{ circulating }}],
+                    backgroundColor: ['#6c5ce7', '#00d2d3'],
+                    borderColor: ['#1c1f2e', '#1c1f2e'],
+                    borderWidth: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#8b8fa3', font: { family: 'Inter', size: 12 }, padding: 16 }
+                    }
+                }
+            }
+        });
+    }
+
+    // Block activity bar chart
+    fetch('/api/blocks/')
+        .then(r => r.json())
+        .then(data => {
+            const blockCtx = document.getElementById('blockChart');
+            if (!blockCtx || !data.blocks.length) return;
+            new Chart(blockCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.blocks.map(b => '#' + b.index),
+                    datasets: [{
+                        label: 'Transfers per Block',
+                        data: data.blocks.map(b => b.tx_count),
+                        backgroundColor: data.blocks.map(b =>
+                            b.status === 'genesis' ? '#fd79a8' : '#6c5ce7'
+                        ),
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#8b8fa3', font: { family: 'Inter', size: 11 } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: {
+                                color: '#8b8fa3',
+                                font: { family: 'Inter', size: 11 },
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        });
+});
+</script>
+{% endblock %}

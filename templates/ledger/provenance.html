@@ -1,0 +1,152 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Provenance &mdash; {{ wallet.label }} &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="breadcrumb">
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+        <span class="sep">/</span>
+        <a href="{% url 'wallet_detail' wallet.id %}">{{ wallet.label }}</a>
+        <span class="sep">/</span>
+        Provenance
+    </div>
+    <h2>Provenance Verification</h2>
+    <p class="subtitle">Trace {{ wallet.label }}'s PatCoin back to genesis</p>
+</div>
+
+{% if reaches_genesis %}
+<div class="validation-pass animate-in mb-3">
+    &#10003; Verified &mdash; All funds trace back to the genesis mint through {{ lineage|length }} transfer{{ lineage|length|pluralize }}
+</div>
+{% else %}
+<div class="alert alert-warning animate-in">
+    This wallet has no confirmed incoming transfers yet.
+</div>
+{% endif %}
+
+<div class="grid-2">
+    <!-- Wallet Summary -->
+    <div class="animate-in">
+        <div class="card mb-2">
+            <div class="card-header">
+                <span class="card-title">Wallet</span>
+            </div>
+            <div style="font-size:1.5rem; font-weight:700; color:var(--color-accent-light);">{{ wallet.balance|patcoin }} PAT</div>
+            <div class="text-dim mt-1">{{ wallet.label }}</div>
+            <div class="hash mt-1" style="font-size:0.75rem;">{{ wallet.address }}</div>
+        </div>
+
+        {% if genesis_block %}
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Genesis Origin</span>
+            </div>
+            <div class="text-dim" style="font-size:0.85rem;">
+                All PatCoin originates from a single genesis mint of
+                <strong class="text-accent">1,000,000.00 PAT</strong>
+                into the Treasury wallet.
+            </div>
+            <div class="mt-2">
+                <div class="form-label">Genesis Block Hash</div>
+                <div class="hash hash-full">{{ genesis_block.block_hash }}</div>
+            </div>
+            {% if treasury %}
+            <div class="mt-2">
+                <div class="form-label">Treasury Address</div>
+                <div class="hash hash-full">{{ treasury.address }}</div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="card mt-2">
+            <div class="card-header">
+                <span class="card-title">Git Anchor</span>
+            </div>
+            <div>
+                <span class="badge {{ anchor_report.status|anchor_status_badge_class }}">{{ anchor_report.status|anchor_status_label }}</span>
+            </div>
+            <div class="text-dim mt-1" style="font-size:0.85rem;">
+                {{ anchor_status_message }}
+            </div>
+            <div class="mt-2">
+                <div class="form-label">Anchored Genesis Hash</div>
+                <div class="hash hash-full">
+                    {% if anchor_report.anchor %}{{ anchor_report.anchor.block.block_hash }}{% else %}—{% endif %}
+                </div>
+            </div>
+            <div class="mt-2">
+                <div class="form-label">Live Database Hash</div>
+                <div class="hash hash-full">
+                    {% if anchor_report.live %}{{ anchor_report.live.block.block_hash }}{% else %}—{% endif %}
+                </div>
+            </div>
+            {% if anchor_report.git.commit_short %}
+            <div class="mt-2">
+                <div class="form-label">Anchor Commit</div>
+                <div class="text-mono text-dim">{{ anchor_report.git.commit_short }}{% if anchor_report.git.commit_subject %} &bull; {{ anchor_report.git.commit_subject }}{% endif %}</div>
+            </div>
+            {% endif %}
+            {% if anchor_report.git.remote_url %}
+            <div class="mt-2">
+                <div class="form-label">Remote URL</div>
+                <div class="hash hash-full">{{ anchor_report.git.remote_url }}</div>
+            </div>
+            {% endif %}
+            {% if anchor_report.mismatches %}
+            <div class="validation-fail mt-2">
+                <strong>Genesis mismatch detected</strong>
+                {% for mismatch in anchor_report.mismatches %}
+                <div class="error-item">{{ mismatch }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Lineage Path -->
+    <div class="animate-in">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Transfer Lineage</span>
+            </div>
+
+            {% if lineage %}
+            <div class="lineage-path">
+                {% for tx in lineage %}
+                <div class="lineage-node {% if not tx.sender %}genesis{% elif tx.sender.wallet_type == 'treasury' %}treasury{% endif %}">
+                    <div class="lineage-content">
+                        <div class="lineage-amount">{{ tx.amount|patcoin }} PAT</div>
+                        <div class="lineage-detail">
+                            {% if not tx.sender %}
+                                <span class="badge badge-genesis">GENESIS MINT</span>
+                            {% elif tx.sender.wallet_type == 'treasury' %}
+                                <span class="badge badge-sealed">Treasury</span> &#8594; {{ tx.recipient.label }}
+                            {% else %}
+                                {{ tx.sender.label }} &#8594; {{ tx.recipient.label }}
+                            {% endif %}
+                        </div>
+                        <div class="lineage-detail mt-1">
+                            {% if tx.block %}
+                            Block <a href="{% url 'block_detail' tx.block.id %}">#{{ tx.block.index }}</a>
+                            &bull;
+                            {% endif %}
+                            {{ tx.created_at|time_ago }}
+                        </div>
+                        <div class="hash mt-1" style="font-size:0.7rem;">TX: {{ tx.tx_hash|hash_short:16 }}</div>
+                        {% if tx.memo %}<div class="text-dim mt-1" style="font-size:0.8rem;">{{ tx.memo }}</div>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">&#128279;</div>
+                <p>No transfer lineage found for this wallet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

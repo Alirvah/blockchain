@@ -1,0 +1,31 @@
+{
+  "block": {
+    "block_hash": "ff3e51cf8603b4e5cd0be77aa7075ae1d10ad7755ce2ed0d82ee3eb0adc2233a",
+    "created_at": "2026-03-16T20:07:28.525931+00:00",
+    "id": "e4c5c7b8-1bf9-48dd-bc1b-77aa63883bf6",
+    "index": 0,
+    "nonce": "GENESIS",
+    "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sealed_at": "2026-03-16T20:07:28.525937+00:00",
+    "status": "genesis"
+  },
+  "exported_at": "2026-03-16T20:41:47.836081+00:00",
+  "manifest_version": 1,
+  "mint_transfer": {
+    "amount": "1000000.00",
+    "created_at": "2026-03-16T20:07:28.525931+00:00",
+    "id": "50497693-fa2d-4cde-97ed-cf578ff6fb4a",
+    "memo": "Genesis mint: 1,000,000 PatCoin created",
+    "status": "confirmed",
+    "tx_hash": "693b825d541d62a5a70c50da77f604cdf7eeaf17c0a15f0fc7bd92c495e6dbb7"
+  },
+  "network": "PatCoin",
+  "total_supply": "1000000.00",
+  "treasury_wallet": {
+    "address": "0x2b0318388f7a4f5cbe5ec234f293e1fa",
+    "created_at": "2026-03-16T20:07:28.527424+00:00",
+    "id": "634a0366-7127-4b9b-b871-1aaccc2b8072",
+    "label": "Treasury",
+    "wallet_type": "treasury"
+  }
+}

@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+data/
+staticfiles/
+media/
+*.sqlite3
+.DS_Store
+.claude/
+gunicorn.ctl

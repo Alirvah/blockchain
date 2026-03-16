@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-patcoin}
+      POSTGRES_USER: ${POSTGRES_USER:-patcoin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-patcoin_secret}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-patcoin} -d ${POSTGRES_DB:-patcoin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    ports:
+      - "${PATCOIN_PORT:-8004}:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://patcoin:patcoin_secret@db:5432/patcoin}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-patcoin-dev-secret-key-change-in-production}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+      PATCOIN_TOTAL_SUPPLY: ${PATCOIN_TOTAL_SUPPLY:-1000000}
+      GENESIS_ANCHOR_PATH: ${GENESIS_ANCHOR_PATH:-anchors/genesis.json}
+    volumes:
+      - .:/app
+      - ./data/static:/app/staticfiles
+      - ./data/media:/app/data/media
+    depends_on:
+      db:
+        condition: service_healthy

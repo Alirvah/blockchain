@@ -242,3 +242,44 @@ class Transfer(models.Model):
             raw = f"{self.sender_id}:{self.recipient_id}:{self.amount}:{self.created_at.isoformat()}:{uuid.uuid4()}"
             self.tx_hash = hashlib.sha256(raw.encode()).hexdigest()
         super().save(*args, **kwargs)
+
+
+class InviteLink(models.Model):
+    """Single-use invite links that create funded customer accounts."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    note = models.CharField(max_length=120, blank=True, default="")
+    bonus_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("10.00"),
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_invites",
+    )
+    used_at = models.DateTimeField(null=True, blank=True)
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="used_invites",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        state = "used" if self.used_at else "open"
+        return f"Invite {self.token} ({state})"
+
+    @property
+    def is_available(self):
+        return self.is_active and self.used_at is None

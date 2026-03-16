@@ -2,24 +2,29 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .forms import (
     CustomerTransferForm,
+    InviteCreateForm,
+    InviteRegistrationForm,
     TransferForm,
     UserCreateForm,
     WalletCreateForm,
 )
 from .genesis_anchor import get_anchor_status_message, get_genesis_anchor_report
-from .models import Block, Transfer, Wallet
+from .models import Block, InviteLink, Transfer, Wallet
+
+User = get_user_model()
+INVITE_BONUS_AMOUNT = Decimal("10.00")
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +39,40 @@ def login_view(request):
         login(request, form.get_user())
         return redirect("dashboard")
     return render(request, "registration/login.html", {"form": form})
+
+
+def invite_registration_url(request, invite):
+    return request.build_absolute_uri(
+        reverse("invite_register", kwargs={"token": invite.token})
+    )
+
+
+def issue_signup_bonus(wallet, invite):
+    treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
+    if not treasury:
+        raise ValueError("Treasury wallet is missing.")
+    if treasury.balance < invite.bonus_amount:
+        raise ValueError("Treasury has insufficient balance for the invite bonus.")
+
+    tip = Block.get_chain_tip()
+    new_index = (tip.index + 1) if tip else 1
+
+    block = Block.objects.create(
+        index=new_index,
+        status=Block.PENDING,
+        previous_hash=tip.block_hash if tip else "0" * 64,
+    )
+    transfer = Transfer.objects.create(
+        sender=treasury,
+        recipient=wallet,
+        amount=invite.bonus_amount,
+        memo=f"Invite bonus via {invite.token}",
+        status=Transfer.PENDING,
+        block=block,
+        created_by=invite.created_by,
+    )
+    block.seal(user=invite.created_by)
+    return transfer, block
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +190,105 @@ def user_create(request):
         messages.success(request, msg)
         return redirect("user_list")
     return render(request, "ledger/user_create.html", {"form": form})
+
+
+# ---------------------------------------------------------------------------
+# Admin: Invite management
+# ---------------------------------------------------------------------------
+
+@login_required
+def invite_list(request):
+    if not request.user.is_staff:
+        return redirect("dashboard")
+
+    invites = InviteLink.objects.select_related("created_by", "used_by").all()
+    invite_rows = [
+        {
+            "invite": invite,
+            "registration_url": invite_registration_url(request, invite),
+        }
+        for invite in invites
+    ]
+    return render(request, "ledger/invite_list.html", {"invite_rows": invite_rows})
+
+
+@login_required
+def invite_create(request):
+    if not request.user.is_staff:
+        return redirect("dashboard")
+
+    form = InviteCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        invite = InviteLink.objects.create(
+            note=form.cleaned_data.get("note", ""),
+            bonus_amount=INVITE_BONUS_AMOUNT,
+            created_by=request.user,
+        )
+        messages.success(
+            request,
+            f"Invite link created. Bonus: {invite.bonus_amount:,.2f} PAT.",
+        )
+        return redirect("invite_list")
+
+    return render(request, "ledger/invite_create.html", {"form": form})
+
+
+def invite_register(request, token):
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+
+    invite = get_object_or_404(InviteLink, token=token)
+    if not invite.is_available:
+        return render(
+            request,
+            "registration/register_invite.html",
+            {
+                "form": None,
+                "invite": invite,
+                "invite_invalid": True,
+                "bonus_amount": invite.bonus_amount,
+            },
+            status=410,
+        )
+
+    form = InviteRegistrationForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=form.cleaned_data["username"],
+                    email=form.cleaned_data.get("email", ""),
+                    password=form.cleaned_data["password"],
+                )
+                wallet = Wallet.objects.create(
+                    label=f"{user.username}'s Wallet",
+                    wallet_type=Wallet.CUSTOMER,
+                    owner=user,
+                )
+                issue_signup_bonus(wallet, invite)
+                invite.used_by = user
+                invite.used_at = timezone.now()
+                invite.save(update_fields=["used_by", "used_at"])
+        except ValueError as exc:
+            form.add_error(None, str(exc))
+        else:
+            login(request, user)
+            messages.success(
+                request,
+                f"Welcome to PatCoin. Your wallet was funded with {invite.bonus_amount:,.2f} PAT.",
+            )
+            return redirect("dashboard")
+
+    return render(
+        request,
+        "registration/register_invite.html",
+        {
+            "form": form,
+            "invite": invite,
+            "invite_invalid": False,
+            "bonus_amount": invite.bonus_amount,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------

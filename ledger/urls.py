@@ -7,6 +7,7 @@ urlpatterns = [
     # Auth
     path("login/", views.login_view, name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("register/<uuid:token>/", views.invite_register, name="invite_register"),
 
     # Dashboard
     path("", views.dashboard, name="dashboard"),
@@ -14,6 +15,8 @@ urlpatterns = [
     # Admin: Users
     path("users/", views.user_list, name="user_list"),
     path("users/create/", views.user_create, name="user_create"),
+    path("invites/", views.invite_list, name="invite_list"),
+    path("invites/create/", views.invite_create, name="invite_create"),
 
     # Wallets
     path("wallets/", views.wallet_list, name="wallet_list"),

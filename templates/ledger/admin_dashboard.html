@@ -50,6 +50,7 @@
             <div style="display:flex;flex-direction:column;gap:0.75rem;">
                 <a href="{% url 'wallet_create' %}" class="btn btn-secondary" style="justify-content:center;">Create Wallet</a>
                 <a href="{% url 'user_create' %}" class="btn btn-secondary" style="justify-content:center;">Create User</a>
+                <a href="{% url 'invite_create' %}" class="btn btn-secondary" style="justify-content:center;">Create Invite</a>
                 <a href="{% url 'transfer_create' %}" class="btn btn-secondary" style="justify-content:center;">New Transfer</a>
                 <a href="{% url 'pending_queue' %}" class="btn btn-primary" style="justify-content:center;">
                     Pending Queue {% if pending_transfers %}<span class="badge badge-pending" style="margin-left:0.5rem;">{{ pending_transfers }}</span>{% endif %}

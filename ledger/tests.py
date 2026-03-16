@@ -20,7 +20,7 @@ from .genesis_anchor import (
     get_anchor_manifest_path,
     get_genesis_anchor_report,
 )
-from .models import Block, Transfer, Wallet
+from .models import Block, InviteLink, Transfer, Wallet
 
 
 @override_settings(PATCOIN_TOTAL_SUPPLY=1_000_000)
@@ -294,6 +294,71 @@ class GenesisAnchorTest(TestCase):
         report = get_genesis_anchor_report()
         self.assertEqual(report["status"], STATUS_MISMATCH)
         self.assertTrue(any("treasury_wallet.address" in mismatch for mismatch in report["mismatches"]))
+
+
+class InviteFlowTest(TestCase):
+    def setUp(self):
+        call_command("bootstrap_genesis")
+        self.admin = User.objects.get(username="admin")
+        self.client = Client()
+
+    def test_admin_can_create_invite_link(self):
+        self.client.login(username="admin", password="admin")
+        response = self.client.post(reverse("invite_create"), {"note": "Launch wave"})
+
+        self.assertEqual(response.status_code, 302)
+        invite = InviteLink.objects.get()
+        self.assertEqual(invite.note, "Launch wave")
+        self.assertEqual(invite.bonus_amount, Decimal("10.00"))
+        self.assertEqual(invite.created_by, self.admin)
+
+    def test_invite_registration_creates_wallet_and_bonus(self):
+        invite = InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
+        treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
+        treasury_before = treasury.balance
+
+        response = self.client.post(
+            reverse("invite_register", args=[invite.token]),
+            {
+                "username": "invited_user",
+                "email": "invite@example.com",
+                "password": "test-pass-123",
+                "confirm_password": "test-pass-123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(username="invited_user")
+        wallet = Wallet.objects.get(owner=user)
+        invite.refresh_from_db()
+        treasury.refresh_from_db()
+        bonus_tx = Transfer.objects.get(recipient=wallet, memo__contains="Invite bonus")
+
+        self.assertEqual(wallet.balance, Decimal("10.00"))
+        self.assertEqual(invite.used_by, user)
+        self.assertIsNotNone(invite.used_at)
+        self.assertEqual(bonus_tx.status, Transfer.CONFIRMED)
+        self.assertIsNotNone(bonus_tx.block)
+        self.assertEqual(bonus_tx.block.status, Block.SEALED)
+        self.assertEqual(treasury.balance, treasury_before - Decimal("10.00"))
+
+    def test_used_invite_cannot_register_twice(self):
+        invite = InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
+
+        first = self.client.post(
+            reverse("invite_register", args=[invite.token]),
+            {
+                "username": "first_user",
+                "password": "test-pass-123",
+                "confirm_password": "test-pass-123",
+            },
+        )
+        self.assertEqual(first.status_code, 302)
+
+        anonymous_client = Client()
+        second = anonymous_client.get(reverse("invite_register", args=[invite.token]))
+        self.assertEqual(second.status_code, 410)
+        self.assertContains(second, "no longer available", status_code=410)
 
 
 class ViewRenderTest(TestCase):

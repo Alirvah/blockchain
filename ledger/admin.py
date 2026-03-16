@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Block, Transfer, Wallet
+from .models import Block, InviteLink, Transfer, Wallet
 
 
 @admin.register(Block)
@@ -37,3 +37,18 @@ class TransferAdmin(admin.ModelAdmin):
         return obj.tx_hash[:16] + "..."
 
     tx_hash_short.short_description = "TX Hash"
+
+
+@admin.register(InviteLink)
+class InviteLinkAdmin(admin.ModelAdmin):
+    list_display = [
+        "token",
+        "note",
+        "bonus_amount",
+        "is_active",
+        "used_at",
+        "created_by",
+        "created_at",
+    ]
+    list_filter = ["is_active", "used_at"]
+    readonly_fields = ["id", "token", "created_at", "used_at", "used_by"]

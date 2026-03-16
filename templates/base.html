@@ -34,6 +34,9 @@
                 <a href="{% url 'user_list' %}" class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
                     <span class="nav-icon">&#9823;</span> Users
                 </a>
+                <a href="{% url 'invite_list' %}" class="nav-link {% if 'invite' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#128279;</span> Invites
+                </a>
                 <a href="{% url 'transfer_list' %}" class="nav-link {% if request.resolver_match.url_name == 'transfer_list' or request.resolver_match.url_name == 'transfer_create' %}active{% endif %}">
                     <span class="nav-icon">&#8644;</span> Transfers
                 </a>

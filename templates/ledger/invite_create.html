@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Create Invite &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="breadcrumb"><a href="{% url 'invite_list' %}">Invites</a> <span class="sep">/</span> Create</div>
+    <h2>Create Invite Link</h2>
+    <p class="subtitle">Each invite creates one account and funds its first wallet with 10 PAT</p>
+</div>
+
+<div class="card form-card animate-in">
+    {% if form.errors %}
+    <div class="alert alert-error">
+        {% for field, errors in form.errors.items %}
+            {% for error in errors %}<div>{{ error }}</div>{% endfor %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label class="form-label" for="id_note">Note (optional)</label>
+            <input type="text" name="note" id="id_note" class="form-input" value="{{ form.note.value|default:'' }}" placeholder="Optional note for this invite">
+        </div>
+        <div class="card" style="margin:1rem 0; background:rgba(255,255,255,0.03);">
+            <div class="form-label">Bonus</div>
+            <div style="font-size:1.25rem; font-weight:700;">10.00 PAT</div>
+            <div class="text-dim" style="margin-top:0.35rem; font-size:0.85rem;">Funded from the treasury and sealed into the chain when the invite is used.</div>
+        </div>
+        <div class="btn-group mt-2">
+            <button type="submit" class="btn btn-primary">Generate Invite</button>
+            <a href="{% url 'invite_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

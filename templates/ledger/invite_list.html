@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Invites &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2>Invite Links</h2>
+            <p class="subtitle">One-time registration links funded with 10 PAT from treasury</p>
+        </div>
+        <a href="{% url 'invite_create' %}" class="btn btn-primary">+ New Invite</a>
+    </div>
+</div>
+
+<div class="table-container animate-in">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Note</th>
+                <th>Bonus</th>
+                <th>Registration Link</th>
+                <th>Created</th>
+                <th>Used By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in invite_rows %}
+            <tr>
+                <td>
+                    {% if row.invite.used_at %}
+                    <span class="badge badge-sealed">Used</span>
+                    {% elif row.invite.is_active %}
+                    <span class="badge badge-confirmed">Ready</span>
+                    {% else %}
+                    <span class="badge badge-failed">Disabled</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.invite.note|default:"—" }}</td>
+                <td class="text-accent">{{ row.invite.bonus_amount|patcoin }} PAT</td>
+                <td>
+                    <a href="{{ row.registration_url }}" class="text-mono" style="font-size:0.8rem; word-break:break-all;">{{ row.registration_url }}</a>
+                </td>
+                <td class="text-dim">{{ row.invite.created_at|time_ago }}</td>
+                <td>
+                    {% if row.invite.used_by %}
+                    {{ row.invite.used_by.username }}
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">No invite links yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

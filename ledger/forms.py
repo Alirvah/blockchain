@@ -135,3 +135,47 @@ class UserCreateForm(forms.Form):
                 owner=user,
             )
         return user, wallet
+
+
+class InviteCreateForm(forms.Form):
+    note = forms.CharField(
+        max_length=120,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-input",
+                "placeholder": "Optional note for who this invite is for",
+            }
+        ),
+    )
+
+
+class InviteRegistrationForm(forms.Form):
+    username = forms.CharField(
+        max_length=150,
+        widget=forms.TextInput(attrs={"class": "form-input"}),
+    )
+    email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={"class": "form-input"}),
+    )
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={"class": "form-input"}),
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={"class": "form-input"}),
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data["username"]
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError("Username already taken.")
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        password = cleaned.get("password")
+        confirm_password = cleaned.get("confirm_password")
+        if password and confirm_password and password != confirm_password:
+            raise forms.ValidationError("Passwords do not match.")
+        return cleaned

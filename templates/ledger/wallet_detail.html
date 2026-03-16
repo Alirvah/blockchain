@@ -1,0 +1,98 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}{{ wallet.label }} &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="breadcrumb"><a href="{% url 'wallet_list' %}">Wallets</a> <span class="sep">/</span> {{ wallet.label }}</div>
+    <div class="flex items-center justify-between">
+        <h2>{{ wallet.label }}</h2>
+        <a href="{% url 'provenance' wallet.id %}" class="btn btn-primary">Verify from Genesis</a>
+    </div>
+</div>
+
+<div class="stats-grid animate-in">
+    <div class="stat-card">
+        <div class="stat-label">Balance</div>
+        <div class="stat-value accent">{{ wallet.balance|patcoin }}</div>
+        <div class="stat-sub">PAT confirmed</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Pending Balance</div>
+        <div class="stat-value">{{ wallet.pending_balance|patcoin }}</div>
+        <div class="stat-sub">PAT including unconfirmed</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Type</div>
+        <div class="stat-value" style="font-size:1rem;">
+            <span class="badge {% if wallet.wallet_type == 'treasury' %}badge-genesis{% else %}badge-default{% endif %}">{{ wallet.wallet_type }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card animate-in mb-2">
+    <div class="card-header">
+        <span class="card-title">Wallet Details</span>
+    </div>
+    <div class="form-group">
+        <div class="form-label">Address</div>
+        <div class="hash hash-full">{{ wallet.address }}</div>
+    </div>
+    <div class="form-group">
+        <div class="form-label">ID</div>
+        <div class="hash hash-full">{{ wallet.id }}</div>
+    </div>
+    {% if wallet.owner %}
+    <div class="form-group">
+        <div class="form-label">Owner</div>
+        <div>{{ wallet.owner.username }}</div>
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <div class="form-label">Created</div>
+        <div class="text-dim">{{ wallet.created_at }}</div>
+    </div>
+</div>
+
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Transfer History</h3>
+    </div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>TX Hash</th>
+                    <th>Type</th>
+                    <th>Counterparty</th>
+                    <th>Amount</th>
+                    <th>Block</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in transfers %}
+                <tr>
+                    <td class="text-mono">{{ tx.tx_hash|hash_short }}</td>
+                    {% if tx.recipient == wallet %}
+                    <td><span class="text-success">&#8595; In</span></td>
+                    <td>{% if tx.sender %}{{ tx.sender.label }}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>
+                    <td class="text-success">+{{ tx.amount|patcoin }}</td>
+                    {% else %}
+                    <td><span class="text-danger">&#8593; Out</span></td>
+                    <td>{{ tx.recipient.label }}</td>
+                    <td class="text-danger">-{{ tx.amount|patcoin }}</td>
+                    {% endif %}
+                    <td>{% if tx.block %}<a href="{% url 'block_detail' tx.block.id %}">#{{ tx.block.index }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                    <td><span class="badge {{ tx.status|status_badge_class }}">{{ tx.status }}</span></td>
+                    <td class="text-dim">{{ tx.created_at|time_ago }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">No transfers.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

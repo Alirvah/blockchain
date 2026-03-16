@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Users &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2>Users</h2>
+            <p class="subtitle">Registered PatCoin users</p>
+        </div>
+        <a href="{% url 'user_create' %}" class="btn btn-primary">+ New User</a>
+    </div>
+</div>
+
+<div class="table-container animate-in">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Wallets</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td><strong>{{ u.username }}</strong></td>
+                <td class="text-dim">{{ u.email|default:"—" }}</td>
+                <td>
+                    {% if u.is_staff %}<span class="badge badge-sealed">Admin</span>
+                    {% else %}<span class="badge badge-default">Customer</span>{% endif %}
+                </td>
+                <td>
+                    {% for w in u.wallets.all %}
+                    <a href="{% url 'wallet_detail' w.id %}" class="text-mono" style="font-size:0.8rem;">{{ w.address|address_short:10 }}</a>{% if not forloop.last %}, {% endif %}
+                    {% empty %}
+                    <span class="text-muted">None</span>
+                    {% endfor %}
+                </td>
+                <td class="text-dim">{{ u.date_joined|time_ago }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

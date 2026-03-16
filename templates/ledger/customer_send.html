@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Send PAT &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="breadcrumb"><a href="{% url 'dashboard' %}">Dashboard</a> <span class="sep">/</span> Send</div>
+    <h2>Send PatCoin</h2>
+    <p class="subtitle">From: {{ wallet.label }} ({{ wallet.balance|patcoin }} PAT available)</p>
+</div>
+
+<div class="card form-card animate-in">
+    {% if form.errors %}
+    <div class="alert alert-error">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        {% for field, errors in form.errors.items %}
+            {% if field != '__all__' %}{% for error in errors %}<div>{{ error }}</div>{% endfor %}{% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label class="form-label" for="id_recipient_address">Recipient Address</label>
+            <input type="text" name="recipient_address" id="id_recipient_address" class="form-input text-mono" placeholder="0x..." required>
+            <div class="form-help">Enter the recipient's wallet address</div>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="id_amount">Amount (PAT)</label>
+            <input type="number" name="amount" id="id_amount" class="form-input" step="0.01" min="0.01" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="id_memo">Memo (optional)</label>
+            <input type="text" name="memo" id="id_memo" class="form-input" placeholder="What's this for?">
+        </div>
+        <div class="btn-group mt-2">
+            <button type="submit" class="btn btn-primary">Send PatCoin</button>
+            <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

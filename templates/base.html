@@ -1,0 +1,104 @@
+{% load static %}{% load ledger_tags %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PatCoin{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+{% block body %}
+<div class="app-layout">
+    <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <h1><span class="logo-icon">P</span> PatCoin</h1>
+            <div class="tagline">Centralized Blockchain Ledger</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            {% if user.is_staff %}
+            <div class="nav-section">
+                <div class="nav-section-title">Operations</div>
+                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">&#9670;</span> Dashboard
+                </a>
+                <a href="{% url 'wallet_list' %}" class="nav-link {% if 'wallet' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#9733;</span> Wallets
+                </a>
+                <a href="{% url 'user_list' %}" class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#9823;</span> Users
+                </a>
+                <a href="{% url 'transfer_list' %}" class="nav-link {% if request.resolver_match.url_name == 'transfer_list' or request.resolver_match.url_name == 'transfer_create' %}active{% endif %}">
+                    <span class="nav-icon">&#8644;</span> Transfers
+                </a>
+                <a href="{% url 'pending_queue' %}" class="nav-link {% if request.resolver_match.url_name == 'pending_queue' %}active{% endif %}">
+                    <span class="nav-icon">&#9203;</span> Pending Queue
+                </a>
+            </div>
+            {% else %}
+            <div class="nav-section">
+                <div class="nav-section-title">My Account</div>
+                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">&#9670;</span> Dashboard
+                </a>
+                <a href="{% url 'customer_send' %}" class="nav-link {% if request.resolver_match.url_name == 'customer_send' %}active{% endif %}">
+                    <span class="nav-icon">&#10148;</span> Send PAT
+                </a>
+            </div>
+            {% endif %}
+
+            <div class="nav-section">
+                <div class="nav-section-title">Explorer</div>
+                <a href="{% url 'explorer' %}" class="nav-link {% if request.resolver_match.url_name == 'explorer' %}active{% endif %}">
+                    <span class="nav-icon">&#9783;</span> Overview
+                </a>
+                <a href="{% url 'block_list' %}" class="nav-link {% if 'block' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#9638;</span> Blocks
+                </a>
+                {% if user.is_staff %}
+                <a href="{% url 'chain_validate' %}" class="nav-link {% if request.resolver_match.url_name == 'chain_validate' %}active{% endif %}">
+                    <span class="nav-icon">&#10003;</span> Validate Chain
+                </a>
+                {% endif %}
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <span class="avatar">{{ user.username|make_list|first|upper }}</span>
+                <span>{{ user.username }}</span>
+                {% if user.is_staff %}<span class="badge badge-sealed" style="margin-left:auto;">Admin</span>{% endif %}
+            </div>
+            <a href="{% url 'logout' %}" class="nav-link" style="padding:0.3rem 0; font-size:0.8rem;">
+                <span class="nav-icon">&#10140;</span> Sign out
+            </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} animate-in">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+<script>
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+</script>
+{% endblock %}
+{% block extra_js %}{% endblock %}
+</body>
+</html>

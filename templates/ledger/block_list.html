@@ -1,0 +1,61 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Blocks &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h2>Block Chain</h2>
+    <p class="subtitle">All blocks in the PatCoin ledger</p>
+</div>
+
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Chain Visualization</h3>
+    </div>
+    <div class="card">
+        <div class="chain-viz" id="chainViz">
+            {% for block in blocks reversed %}
+            {% if not forloop.first %}<div class="chain-link"></div>{% endif %}
+            <a href="{% url 'block_detail' block.id %}" class="chain-block" style="text-decoration:none;">
+                <div class="chain-block-node {{ block.status }}">
+                    {% if block.status == "genesis" %}G{% else %}#{{ block.index }}{% endif %}
+                </div>
+                <div class="chain-block-label">{{ block.block_hash|hash_short:8 }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Block List</h3>
+    </div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Index</th>
+                    <th>Hash</th>
+                    <th>Previous Hash</th>
+                    <th>Transfers</th>
+                    <th>Status</th>
+                    <th>Sealed At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for block in blocks %}
+                <tr>
+                    <td><a href="{% url 'block_detail' block.id %}"><strong>#{{ block.index }}</strong></a></td>
+                    <td class="text-mono">{{ block.block_hash|hash_short }}</td>
+                    <td class="text-mono">{{ block.previous_hash|hash_short }}</td>
+                    <td>{{ block.transfers.count }}</td>
+                    <td><span class="badge {{ block.status|status_badge_class }}">{{ block.status }}</span></td>
+                    <td class="text-dim">{% if block.sealed_at %}{{ block.sealed_at|time_ago }}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

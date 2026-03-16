@@ -1,0 +1,145 @@
+{% extends "base.html" %}{% load ledger_tags %}{% load humanize %}
+
+{% block title %}Dashboard &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h2>Operations Dashboard</h2>
+    <p class="subtitle">PatCoin network overview and controls</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card animate-in delay-1">
+        <div class="stat-label">Total Supply</div>
+        <div class="stat-value">{{ total_supply|patcoin }}</div>
+        <div class="stat-sub">PAT</div>
+    </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-label">Treasury</div>
+        <div class="stat-value accent">{{ treasury_balance|patcoin }}</div>
+        <div class="stat-sub">PAT held</div>
+    </div>
+    <div class="stat-card animate-in delay-3">
+        <div class="stat-label">Circulating</div>
+        <div class="stat-value success">{{ circulating|patcoin }}</div>
+        <div class="stat-sub">PAT distributed</div>
+    </div>
+    <div class="stat-card animate-in delay-4">
+        <div class="stat-label">Sealed Blocks</div>
+        <div class="stat-value">{{ block_count }}</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="section animate-in">
+        <div class="section-header">
+            <h3 class="section-title">Supply Distribution</h3>
+        </div>
+        <div class="card">
+            <div class="chart-container">
+                <canvas id="supplyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="section animate-in">
+        <div class="section-header">
+            <h3 class="section-title">Quick Actions</h3>
+        </div>
+        <div class="card">
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                <a href="{% url 'wallet_create' %}" class="btn btn-secondary" style="justify-content:center;">Create Wallet</a>
+                <a href="{% url 'user_create' %}" class="btn btn-secondary" style="justify-content:center;">Create User</a>
+                <a href="{% url 'transfer_create' %}" class="btn btn-secondary" style="justify-content:center;">New Transfer</a>
+                <a href="{% url 'pending_queue' %}" class="btn btn-primary" style="justify-content:center;">
+                    Pending Queue {% if pending_transfers %}<span class="badge badge-pending" style="margin-left:0.5rem;">{{ pending_transfers }}</span>{% endif %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Recent Transfers</h3>
+        <a href="{% url 'transfer_list' %}" class="btn btn-sm btn-secondary">View all</a>
+    </div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>TX Hash</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in recent_transfers %}
+                <tr>
+                    <td class="text-mono">{{ tx.tx_hash|hash_short }}</td>
+                    <td>{% if tx.sender %}{{ tx.sender.label }}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>
+                    <td>{{ tx.recipient.label }}</td>
+                    <td class="text-accent">{{ tx.amount|patcoin }} PAT</td>
+                    <td><span class="badge {{ tx.status|status_badge_class }}">{{ tx.status }}</span></td>
+                    <td class="text-dim">{{ tx.created_at|time_ago }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">No transfers yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Recent Blocks</h3>
+        <a href="{% url 'block_list' %}" class="btn btn-sm btn-secondary">View all</a>
+    </div>
+    <div class="chain-viz">
+        {% for block in recent_blocks reversed %}
+        {% if not forloop.first %}<div class="chain-link"></div>{% endif %}
+        <a href="{% url 'block_detail' block.id %}" class="chain-block" style="text-decoration:none;">
+            <div class="chain-block-node {{ block.status }}">
+                {% if block.status == "genesis" %}G{% else %}#{{ block.index }}{% endif %}
+            </div>
+            <div class="chain-block-label">{{ block.block_hash|hash_short:8 }}</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('supplyChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Treasury', 'Circulating'],
+            datasets: [{
+                data: [{{ treasury_balance }}, {{ circulating }}],
+                backgroundColor: ['#6c5ce7', '#00d2d3'],
+                borderColor: ['#1c1f2e', '#1c1f2e'],
+                borderWidth: 3,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#8b8fa3', font: { family: 'Inter', size: 12 }, padding: 16 }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

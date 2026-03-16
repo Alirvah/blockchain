@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Wallets &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2>Wallets</h2>
+            <p class="subtitle">All registered PatCoin wallets</p>
+        </div>
+        <a href="{% url 'wallet_create' %}" class="btn btn-primary">+ New Wallet</a>
+    </div>
+</div>
+
+<div class="table-container animate-in">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Label</th>
+                <th>Type</th>
+                <th>Address</th>
+                <th>Owner</th>
+                <th>Balance</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for wallet in wallets %}
+            <tr>
+                <td><strong>{{ wallet.label }}</strong></td>
+                <td><span class="badge {% if wallet.wallet_type == 'treasury' %}badge-genesis{% else %}badge-default{% endif %}">{{ wallet.wallet_type }}</span></td>
+                <td class="text-mono">{{ wallet.address|address_short }}</td>
+                <td>{% if wallet.owner %}{{ wallet.owner.username }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-accent">{{ wallet.balance|patcoin }} PAT</td>
+                <td>
+                    <div class="btn-group">
+                        <a href="{% url 'wallet_detail' wallet.id %}" class="btn btn-sm btn-secondary">View</a>
+                        <a href="{% url 'provenance' wallet.id %}" class="btn btn-sm btn-secondary">Trace</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

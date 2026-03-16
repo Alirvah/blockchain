@@ -1,0 +1,74 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Validate Chain &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <h2>Chain Validation</h2>
+    <p class="subtitle">Verify hash integrity across all sealed blocks</p>
+</div>
+
+{% if is_valid %}
+<div class="validation-pass animate-in mb-3">
+    &#10003; Chain integrity verified &mdash; all {{ blocks.count }} block{{ blocks.count|pluralize }} pass hash validation
+</div>
+{% else %}
+<div class="validation-fail animate-in mb-3">
+    <strong>&#10007; Chain integrity check failed</strong>
+    {% for err in errors %}
+    <div class="error-item">{{ err }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Block Hash Chain</h3>
+    </div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Index</th>
+                    <th>Status</th>
+                    <th>Block Hash</th>
+                    <th>Previous Hash</th>
+                    <th>Links to</th>
+                    <th>Integrity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for block in blocks %}
+                <tr>
+                    <td><a href="{% url 'block_detail' block.id %}"><strong>#{{ block.index }}</strong></a></td>
+                    <td><span class="badge {{ block.status|status_badge_class }}">{{ block.status }}</span></td>
+                    <td class="text-mono">{{ block.block_hash|hash_short:16 }}</td>
+                    <td class="text-mono">{{ block.previous_hash|hash_short:16 }}</td>
+                    <td>{% if block.index > 0 %}Block #{{ block.index|add:"-1" }}{% else %}<span class="text-muted">Origin</span>{% endif %}</td>
+                    <td class="text-success">&#10003;</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="section animate-in">
+    <div class="section-header">
+        <h3 class="section-title">Visual Chain</h3>
+    </div>
+    <div class="card">
+        <div class="chain-viz">
+            {% for block in blocks %}
+            {% if not forloop.first %}<div class="chain-link"></div>{% endif %}
+            <a href="{% url 'block_detail' block.id %}" class="chain-block" style="text-decoration:none;">
+                <div class="chain-block-node {{ block.status }}">
+                    {% if block.status == "genesis" %}G{% else %}#{{ block.index }}{% endif %}
+                </div>
+                <div class="chain-block-label">{{ block.block_hash|hash_short:8 }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

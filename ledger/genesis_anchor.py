@@ -136,7 +136,7 @@ def compare_anchor_to_live(anchor: dict[str, Any], live: dict[str, Any]) -> list
 def _run_git(*args: str) -> subprocess.CompletedProcess[str] | None:
     try:
         return subprocess.run(
-            ["git", *args],
+            ["git", "-c", f"safe.directory={settings.BASE_DIR}", *args],
             cwd=settings.BASE_DIR,
             check=False,
             capture_output=True,

@@ -889,6 +889,32 @@ class CustomerQrRenderTest(TestCase):
         self.assertContains(response, "Scan QR")
         self.assertContains(response, "Scan Image")
 
+    def test_pending_balance_hidden_when_no_pending_transfers(self):
+        dashboard = self.client.get(reverse("dashboard"))
+        send = self.client.get(reverse("customer_send"))
+        detail = self.client.get(reverse("wallet_detail", args=[self.wallet.id]))
+
+        self.assertNotContains(dashboard, "Including unconfirmed")
+        self.assertNotContains(send, "Pending Balance")
+        self.assertNotContains(detail, "Pending Balance")
+
+    def test_pending_balance_shown_when_wallet_has_pending_transfer(self):
+        treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
+        Transfer.objects.create(
+            sender=treasury,
+            recipient=self.wallet,
+            amount=Decimal("12.00"),
+            status=Transfer.PENDING,
+        )
+
+        dashboard = self.client.get(reverse("dashboard"))
+        send = self.client.get(reverse("customer_send"))
+        detail = self.client.get(reverse("wallet_detail", args=[self.wallet.id]))
+
+        self.assertContains(dashboard, "Including unconfirmed")
+        self.assertContains(send, "Pending Balance")
+        self.assertContains(detail, "Pending Balance")
+
     def test_wallet_detail_shows_receive_qr_section(self):
         response = self.client.get(reverse("wallet_detail", args=[self.wallet.id]))
         self.assertEqual(response.status_code, 200)

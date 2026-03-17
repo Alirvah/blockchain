@@ -144,6 +144,10 @@
             <span class="tab-icon">&#9783;</span>
             <span class="tab-label">Explorer</span>
         </a>
+        <a href="{% url 'how_it_works' %}" class="bottom-tab {% if request.resolver_match.url_name == 'how_it_works' or request.resolver_match.url_name == 'chain_validate' %}active{% endif %}">
+            <span class="tab-icon">&#9745;</span>
+            <span class="tab-label">Verify</span>
+        </a>
         <button class="bottom-tab" onclick="toggleSidebar()">
             <span class="tab-icon">&#9776;</span>
             <span class="tab-label">More</span>
@@ -161,9 +165,9 @@
             <span class="tab-icon">&#10148;</span>
             <span class="tab-label">Send</span>
         </a>
-        <a href="{% url 'explorer' %}" class="bottom-tab {% if request.resolver_match.url_name == 'explorer' %}active{% endif %}">
-            <span class="tab-icon">&#9783;</span>
-            <span class="tab-label">Explorer</span>
+        <a href="{% url 'how_it_works' %}" class="bottom-tab {% if request.resolver_match.url_name == 'how_it_works' or request.resolver_match.url_name == 'chain_validate' %}active{% endif %}">
+            <span class="tab-icon">&#9745;</span>
+            <span class="tab-label">Verify</span>
         </a>
         <button class="bottom-tab" onclick="toggleSidebar()">
             <span class="tab-icon">&#9776;</span>

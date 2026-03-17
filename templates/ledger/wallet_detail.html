@@ -17,11 +17,13 @@
         <div class="stat-value accent">{{ wallet.balance|patcoin }}</div>
         <div class="stat-sub">PAT confirmed</div>
     </div>
+    {% if wallet.pending_balance != wallet.balance %}
     <div class="stat-card">
         <div class="stat-label">Pending Balance</div>
         <div class="stat-value">{{ wallet.pending_balance|patcoin }}</div>
         <div class="stat-sub">PAT including unconfirmed</div>
     </div>
+    {% endif %}
     <div class="stat-card">
         <div class="stat-label">Type</div>
         <div class="stat-value" style="font-size:1rem;">

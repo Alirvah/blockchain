@@ -14,7 +14,7 @@
     <div class="alert alert-warning">
         Treasury cannot cover another invite bonus right now.
         Open invite liability: {{ invite_funding.outstanding_liability|patcoin }} PAT.
-        Treasury balance: {{ invite_funding.treasury_balance|patcoin }} PAT.
+        Treasury available after pending transfers: {{ invite_funding.treasury_available|patcoin }} PAT.
     </div>
     {% endif %}
 
@@ -36,14 +36,14 @@
         <div class="card" style="margin:1rem 0; background:rgba(255,255,255,0.03);">
             <div class="form-label">Bonus</div>
             <div style="font-size:1.25rem; font-weight:700;">10.00 PAT</div>
-            <div class="text-dim" style="margin-top:0.35rem; font-size:0.85rem;">Funded from the treasury and sealed into the chain when the invite is used.</div>
+            <div class="text-dim" style="margin-top:0.35rem; font-size:0.85rem;">Queued from the treasury when the invite is used, then sealed automatically within 5 minutes.</div>
         </div>
         <div class="card" style="margin:1rem 0; background:rgba(255,255,255,0.03);">
             <div class="form-label">Treasury Coverage</div>
             <div class="treasury-coverage-grid">
                 <div>
-                    <div class="text-dim" style="font-size:0.8rem;">Treasury</div>
-                    <div style="font-weight:700;">{{ invite_funding.treasury_balance|patcoin }} PAT</div>
+                    <div class="text-dim" style="font-size:0.8rem;">Treasury Available</div>
+                    <div style="font-weight:700;">{{ invite_funding.treasury_available|patcoin }} PAT</div>
                 </div>
                 <div>
                     <div class="text-dim" style="font-size:0.8rem;">Open Invite Liability</div>

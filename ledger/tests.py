@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -31,6 +32,7 @@ from .health import (
     is_background_validation_running,
 )
 from .models import Block, InviteLink, Transfer, Wallet
+from .sealing import seal_pending_transfers
 
 
 @override_settings(PATCOIN_TOTAL_SUPPLY=1_000_000)
@@ -147,6 +149,99 @@ class BlockSealingTest(TestCase):
         is_valid, errors = Block.validate_chain()
         self.assertFalse(is_valid)
         self.assertTrue(len(errors) > 0)
+
+    def test_shared_sealer_seals_all_pending_transfers(self):
+        Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet,
+            amount=Decimal("50"),
+            status=Transfer.PENDING,
+        )
+
+        result = seal_pending_transfers()
+
+        self.assertTrue(result.was_sealed)
+        self.assertEqual(result.transfer_count, 1)
+        self.assertEqual(result.block.status, Block.SEALED)
+        self.assertIsNone(result.block.sealed_by)
+        self.assertEqual(Transfer.objects.get(recipient=self.wallet).status, Transfer.CONFIRMED)
+
+    def test_auto_seal_command_seals_pending_transfers(self):
+        Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet,
+            amount=Decimal("75"),
+            status=Transfer.PENDING,
+        )
+        stdout = StringIO()
+
+        call_command("auto_seal_blocks", stdout=stdout)
+
+        sealed_block = Block.objects.get(status=Block.SEALED)
+        tx = Transfer.objects.get(recipient=self.wallet)
+        self.assertEqual(tx.status, Transfer.CONFIRMED)
+        self.assertEqual(tx.block, sealed_block)
+        self.assertIsNone(sealed_block.sealed_by)
+        self.assertIn("Block #1 sealed with 1 transfer(s).", stdout.getvalue())
+
+    def test_auto_seal_command_is_noop_when_queue_empty(self):
+        stdout = StringIO()
+
+        call_command("auto_seal_blocks", stdout=stdout)
+
+        self.assertEqual(Block.objects.filter(status=Block.SEALED).count(), 0)
+        self.assertIn("No pending transfers to seal.", stdout.getvalue())
+
+    @mock.patch("ledger.sealing._try_acquire_advisory_lock", return_value=False)
+    def test_auto_seal_command_skips_when_lock_is_held(self, _lock_mock):
+        Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet,
+            amount=Decimal("80"),
+            status=Transfer.PENDING,
+        )
+        stdout = StringIO()
+
+        call_command("auto_seal_blocks", stdout=stdout)
+
+        self.assertEqual(Block.objects.filter(status=Block.SEALED).count(), 0)
+        self.assertEqual(Transfer.objects.get(recipient=self.wallet).status, Transfer.PENDING)
+        self.assertIn("another sealing run is already in progress", stdout.getvalue())
+
+    def test_manual_seal_view_still_seals_pending_transfers(self):
+        client = Client()
+        client.login(username="admin", password="admin")
+        Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet,
+            amount=Decimal("60"),
+            status=Transfer.PENDING,
+        )
+
+        response = client.post(reverse("seal_block"))
+
+        sealed_block = Block.objects.get(status=Block.SEALED)
+        self.assertRedirects(response, reverse("block_detail", args=[sealed_block.id]))
+        self.assertEqual(sealed_block.sealed_by, self.admin)
+        self.assertEqual(Transfer.objects.get(recipient=self.wallet).status, Transfer.CONFIRMED)
+
+    def test_auto_sealed_blocks_render_as_system_sealed(self):
+        client = Client()
+        client.login(username="admin", password="admin")
+        Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet,
+            amount=Decimal("90"),
+            status=Transfer.PENDING,
+        )
+        call_command("auto_seal_blocks")
+        sealed_block = Block.objects.get(status=Block.SEALED)
+
+        detail_response = client.get(reverse("block_detail", args=[sealed_block.id]))
+        list_response = client.get(reverse("block_list"))
+
+        self.assertContains(detail_response, "System")
+        self.assertContains(list_response, "System")
 
 
 class AuthorizationTest(TestCase):
@@ -408,13 +503,59 @@ class InviteFlowTest(TestCase):
         treasury.refresh_from_db()
         bonus_tx = Transfer.objects.get(recipient=wallet, memo__contains="Invite bonus")
 
-        self.assertEqual(wallet.balance, Decimal("10.00"))
+        self.assertEqual(wallet.balance, Decimal("0.00"))
+        self.assertEqual(wallet.pending_balance, Decimal("10.00"))
         self.assertEqual(invite.used_by, user)
         self.assertIsNotNone(invite.used_at)
-        self.assertEqual(bonus_tx.status, Transfer.CONFIRMED)
-        self.assertIsNotNone(bonus_tx.block)
-        self.assertEqual(bonus_tx.block.status, Block.SEALED)
-        self.assertEqual(treasury.balance, treasury_before - Decimal("10.00"))
+        self.assertEqual(bonus_tx.status, Transfer.PENDING)
+        self.assertIsNone(bonus_tx.block)
+        self.assertEqual(treasury.balance, treasury_before)
+        self.assertEqual(treasury.pending_balance, treasury_before - Decimal("10.00"))
+
+    def test_invite_registration_mentions_pending_bonus(self):
+        invite = InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
+
+        response = self.client.post(
+            reverse("invite_register", args=[invite.token]),
+            {
+                "username": "pending_bonus_user",
+                "email": "invite@example.com",
+                "password": "test-pass-123",
+                "confirm_password": "test-pass-123",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "invite bonus is pending and will confirm within 5 minutes")
+
+    def test_pending_invite_bonus_counts_against_new_invite_capacity(self):
+        self.client.login(username="admin", password="admin")
+        treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
+        treasury_depletion = Wallet.objects.create(label="Drain", wallet_type=Wallet.CUSTOMER)
+        Transfer.objects.create(
+            sender=treasury,
+            recipient=treasury_depletion,
+            amount=Decimal("999990.00"),
+            status=Transfer.CONFIRMED,
+        )
+        invite = InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
+        anonymous_client = Client()
+        registration = anonymous_client.post(
+            reverse("invite_register", args=[invite.token]),
+            {
+                "username": "queued_invite_user",
+                "password": "test-pass-123",
+                "confirm_password": "test-pass-123",
+            },
+        )
+        self.assertEqual(registration.status_code, 302)
+
+        response = self.client.post(reverse("invite_create"), {"note": "Should stay blocked"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(InviteLink.objects.count(), 1)
+        self.assertContains(response, "Treasury cannot safely cover another invite bonus")
 
     def test_used_invite_cannot_register_twice(self):
         invite = InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))

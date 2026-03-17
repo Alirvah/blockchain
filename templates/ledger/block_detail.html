@@ -50,10 +50,10 @@
             <div class="detail-value">{{ blk.sealed_at|time_ago }}</div>
         </div>
         {% endif %}
-        {% if blk.sealed_by %}
+        {% if blk.sealed_at %}
         <div class="detail-row">
             <div class="detail-label">Sealed By</div>
-            <div class="detail-value">{{ blk.sealed_by.username }}</div>
+            <div class="detail-value">{% if blk.sealed_by %}{{ blk.sealed_by.username }}{% else %}System{% endif %}</div>
         </div>
         {% endif %}
     </div>

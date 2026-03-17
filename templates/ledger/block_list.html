@@ -40,6 +40,7 @@
                     <th>Previous Hash</th>
                     <th>Transfers</th>
                     <th>Status</th>
+                    <th>Sealed By</th>
                     <th>Sealed At</th>
                 </tr>
             </thead>
@@ -51,6 +52,13 @@
                     <td class="text-mono">{{ block.previous_hash|hash_short }}</td>
                     <td>{{ block.transfers.count }}</td>
                     <td><span class="badge {{ block.status|status_badge_class }}">{{ block.status }}</span></td>
+                    <td class="text-dim">
+                        {% if block.sealed_at %}
+                            {% if block.sealed_by %}{{ block.sealed_by.username }}{% else %}System{% endif %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
                     <td class="text-dim">{% if block.sealed_at %}{{ block.sealed_at|time_ago }}{% else %}—{% endif %}</td>
                 </tr>
                 {% endfor %}

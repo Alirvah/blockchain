@@ -31,3 +31,34 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  auto-seal:
+    build: .
+    command:
+      - sh
+      - -lc
+      - |
+        until python manage.py auto_seal_blocks; do
+          echo "Auto-seal waiting for app initialization..."
+          sleep 5
+        done
+        while true; do
+          sleep 300
+          python manage.py auto_seal_blocks || true
+        done
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://patcoin:patcoin_secret@db:5432/patcoin}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-patcoin-dev-secret-key-change-in-production}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+      PATCOIN_TOTAL_SUPPLY: ${PATCOIN_TOTAL_SUPPLY:-1000000}
+      GENESIS_ANCHOR_PATH: ${GENESIS_ANCHOR_PATH:-anchors/genesis.json}
+    volumes:
+      - .:/app
+      - ./data/static:/app/staticfiles
+      - ./data/media:/app/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started

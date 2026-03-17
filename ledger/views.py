@@ -26,9 +26,9 @@ from .health import (
     ensure_background_validation,
     get_cached_anchor_report,
     get_cached_chain_validation,
-    invalidate_chain_health_cache,
 )
 from .models import Block, InviteLink, Transfer, Wallet
+from .sealing import seal_pending_transfers
 
 User = get_user_model()
 INVITE_BONUS_AMOUNT = Decimal("10.00")
@@ -103,53 +103,45 @@ def patcoin_share_url(request, wallet_or_address):
 
 
 def issue_signup_bonus(wallet, invite):
-    treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
+    treasury = Wallet.objects.select_for_update().filter(wallet_type=Wallet.TREASURY).first()
     if not treasury:
         raise ValueError("Treasury wallet is missing.")
-    if treasury.balance < invite.bonus_amount:
+    if treasury.pending_balance < invite.bonus_amount:
         raise ValueError("Treasury has insufficient balance for the invite bonus.")
 
-    tip = Block.get_chain_tip()
-    new_index = (tip.index + 1) if tip else 1
-
-    block = Block.objects.create(
-        index=new_index,
-        status=Block.PENDING,
-        previous_hash=tip.block_hash if tip else "0" * 64,
-    )
     transfer = Transfer.objects.create(
         sender=treasury,
         recipient=wallet,
         amount=invite.bonus_amount,
         memo=f"Invite bonus via {invite.token}",
         status=Transfer.PENDING,
-        block=block,
         created_by=invite.created_by,
     )
-    block.seal(user=invite.created_by)
-    return transfer, block
+    return transfer, None
 
 
 def get_invite_funding_status():
     treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
     treasury_balance = treasury.balance if treasury else Decimal("0")
+    treasury_available = treasury.pending_balance if treasury else Decimal("0")
     open_invites = InviteLink.objects.filter(is_active=True, used_at__isnull=True)
     outstanding_liability = (
         open_invites.aggregate(total=models.Sum("bonus_amount"))["total"]
         or Decimal("0")
     )
-    available_after_liability = treasury_balance - outstanding_liability
-    shortfall = max(Decimal("0"), outstanding_liability - treasury_balance)
+    available_after_liability = treasury_available - outstanding_liability
+    shortfall = max(Decimal("0"), outstanding_liability - treasury_available)
 
     return {
         "treasury": treasury,
         "treasury_balance": treasury_balance,
+        "treasury_available": treasury_available,
         "open_invite_count": open_invites.count(),
         "outstanding_liability": outstanding_liability,
         "available_after_liability": available_after_liability,
         "shortfall": shortfall,
-        "can_create_invite": treasury_balance >= (outstanding_liability + INVITE_BONUS_AMOUNT),
-        "existing_invites_funded": treasury_balance >= outstanding_liability,
+        "can_create_invite": treasury_available >= (outstanding_liability + INVITE_BONUS_AMOUNT),
+        "existing_invites_funded": treasury_available >= outstanding_liability,
         "next_invite_bonus": INVITE_BONUS_AMOUNT,
     }
 
@@ -373,12 +365,11 @@ def invite_register(request, token):
         except ValueError as exc:
             form.add_error(None, str(exc))
         else:
-            transaction.on_commit(invalidate_chain_health_cache)
             login(request, user)
             ensure_background_validation()
             messages.success(
                 request,
-                f"Welcome to PatCoin. Your wallet was funded with {invite.bonus_amount:,.2f} PAT.",
+                f"Welcome to PatCoin. Your {invite.bonus_amount:,.2f} PAT invite bonus is pending and will confirm within 5 minutes.",
             )
             return redirect("dashboard")
 
@@ -495,7 +486,7 @@ def patcoin_pay(request, address):
 
 @login_required
 def block_list(request):
-    blocks = Block.objects.all()
+    blocks = Block.objects.select_related("sealed_by").all()
     if not request.user.is_staff:
         blocks = blocks.filter(status__in=[Block.SEALED, Block.GENESIS])
     return render(request, "ledger/block_list.html", {"blocks": blocks})
@@ -526,31 +517,20 @@ def seal_block(request):
     if not request.user.is_staff:
         return redirect("dashboard")
 
-    pending = Transfer.objects.filter(status=Transfer.PENDING)
-    if not pending.exists():
+    result = seal_pending_transfers(user=request.user)
+    if result.status == "empty":
         messages.warning(request, "No pending transfers to seal.")
         return redirect("pending_queue")
-
-    with transaction.atomic():
-        tip = Block.get_chain_tip()
-        new_index = (tip.index + 1) if tip else 1
-
-        block = Block.objects.create(
-            index=new_index,
-            status=Block.PENDING,
-            previous_hash=tip.block_hash if tip else "0" * 64,
-        )
-
-        pending.update(block=block)
-        block.seal(user=request.user)
-        transaction.on_commit(invalidate_chain_health_cache)
+    if result.status == "locked":
+        messages.warning(request, "Block sealing is already running. Please wait for the current run to finish.")
+        return redirect("pending_queue")
 
     messages.success(
         request,
-        f"Block #{block.index} sealed with {pending.count()} transfer(s). "
-        f"Hash: {block.block_hash[:16]}..."
+        f"Block #{result.block.index} sealed with {result.transfer_count} transfer(s). "
+        f"Hash: {result.block.block_hash[:16]}..."
     )
-    return redirect("block_detail", block_id=block.id)
+    return redirect("block_detail", block_id=result.block.id)
 
 
 # ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@
 {% if not invite_funding.existing_invites_funded %}
 <div class="validation-fail animate-in mb-3">
     <strong>Invite treasury shortfall detected</strong>
-    Open invite liability is {{ invite_funding.outstanding_liability|patcoin }} PAT, but treasury only holds {{ invite_funding.treasury_balance|patcoin }} PAT.
+    Open invite liability is {{ invite_funding.outstanding_liability|patcoin }} PAT, but treasury only has {{ invite_funding.treasury_available|patcoin }} PAT available after pending transfers.
     Shortfall: {{ invite_funding.shortfall|patcoin }} PAT.
 </div>
 {% elif not invite_funding.can_create_invite %}
@@ -28,9 +28,9 @@
 
 <div class="stats-grid">
     <div class="stat-card animate-in delay-1">
-        <div class="stat-label">Treasury Balance</div>
-        <div class="stat-value accent">{{ invite_funding.treasury_balance|patcoin }}</div>
-        <div class="stat-sub">PAT available</div>
+        <div class="stat-label">Treasury Available</div>
+        <div class="stat-value accent">{{ invite_funding.treasury_available|patcoin }}</div>
+        <div class="stat-sub">After pending transfers</div>
     </div>
     <div class="stat-card animate-in delay-2">
         <div class="stat-label">Open Invite Liability</div>

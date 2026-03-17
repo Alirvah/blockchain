@@ -7,13 +7,13 @@
     <div class="flex items-center justify-between">
         <div>
             <h2>Pending Queue</h2>
-            <p class="subtitle">Unconfirmed transfers waiting to be sealed into a block</p>
+            <p class="subtitle">Unconfirmed transfers waiting to be sealed into the next automatic block</p>
         </div>
         {% if pending_transfers %}
         <form method="post" action="{% url 'seal_block' %}">
             {% csrf_token %}
-            <button type="submit" class="btn btn-success" onclick="return confirm('Seal all pending transfers into a new block?')">
-                &#9638; Seal Block
+            <button type="submit" class="btn btn-success" onclick="return confirm('Seal all pending transfers into a new block right now?')">
+                &#9638; Seal Now
             </button>
         </form>
         {% endif %}
@@ -23,7 +23,7 @@
 {% if pending_transfers %}
 <div class="alert alert-info animate-in">
     <strong>{{ pending_transfers.count }}</strong> transfer{{ pending_transfers.count|pluralize }} pending.
-    Seal them into a new block to confirm.
+    Blocks auto-seal every 5 minutes. Use "Seal Now" only if you need immediate confirmation.
 </div>
 
 <div class="table-container animate-in">
@@ -56,7 +56,7 @@
 <div class="card animate-in">
     <div class="empty-state">
         <div class="empty-icon">&#10003;</div>
-        <p>No pending transfers. All transfers have been sealed into blocks.</p>
+        <p>No pending transfers. The automatic sealer has already cleared the queue.</p>
     </div>
 </div>
 {% endif %}

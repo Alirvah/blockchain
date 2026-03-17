@@ -11,7 +11,9 @@
     </div>
     <h2>How PatCoin Works</h2>
     <p class="subtitle">A visual walkthrough of the real chain running right now</p>
+    {% if user.is_staff %}
     <a href="{% url 'how_it_works' %}?refresh=1" class="btn btn-secondary">Refresh Verification</a>
+    {% endif %}
 </div>
 
 <!-- ============================================================

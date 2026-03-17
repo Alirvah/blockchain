@@ -27,6 +27,7 @@ from .context_processors import chain_status
 from .health import (
     ensure_background_validation,
     get_cached_anchor_report,
+    get_cached_chain_validation,
     get_cached_layout_chain_status,
     invalidate_chain_health_cache,
     is_background_validation_running,
@@ -208,6 +209,21 @@ class BlockSealingTest(TestCase):
         self.assertEqual(Transfer.objects.get(recipient=self.wallet).status, Transfer.PENDING)
         self.assertIn("another sealing run is already in progress", stdout.getvalue())
 
+    @mock.patch("ledger.health.Block.validate_chain", return_value=(True, []))
+    def test_auto_seal_command_refreshes_validation_cache(self, validate_mock):
+        Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet,
+            amount=Decimal("33"),
+            status=Transfer.PENDING,
+        )
+
+        call_command("auto_seal_blocks")
+        cached = get_cached_chain_validation()
+
+        self.assertEqual(cached, {"is_valid": True, "errors": []})
+        self.assertEqual(validate_mock.call_count, 1)
+
     def test_manual_seal_view_still_seals_pending_transfers(self):
         client = Client()
         client.login(username="admin", password="admin")
@@ -282,6 +298,18 @@ class AuthorizationTest(TestCase):
 
         response = client.get(reverse("chain_validate"))
         self.assertEqual(response.status_code, 200)
+
+    @mock.patch("ledger.views.get_cached_chain_validation")
+    def test_customer_refresh_request_uses_cached_validation_only(self, validation_mock):
+        validation_mock.return_value = {"is_valid": True, "errors": []}
+        client = Client()
+        client.login(username="user1", password="test")
+
+        response = client.get(f"{reverse('chain_validate')}?refresh=1")
+
+        self.assertEqual(response.status_code, 200)
+        validation_mock.assert_called_once_with(force_refresh=False)
+        self.assertNotContains(response, "Refresh Validation")
 
     def test_customer_cannot_access_admin_pages(self):
         """Customer cannot access admin operational pages."""
@@ -789,6 +817,52 @@ class HealthCacheTest(TestCase):
         ensure_mock.assert_called_once()
         self.assertEqual(result["anchor_status"], "validating")
         self.assertTrue(result["background_validation_running"])
+
+    @mock.patch("ledger.context_processors.ensure_background_validation")
+    @mock.patch("ledger.context_processors.get_cached_layout_chain_status")
+    def test_context_processor_ignores_force_refresh_for_nonstaff(
+        self,
+        status_mock,
+        ensure_mock,
+    ):
+        status_mock.return_value = {
+            "chain_health": "local",
+            "chain_is_valid": True,
+            "chain_error_count": 0,
+            "anchor_status": "valid",
+        }
+        request = SimpleNamespace(
+            user=SimpleNamespace(is_authenticated=True, is_staff=False),
+            GET={"refresh": "1"},
+        )
+
+        chain_status(request)
+
+        status_mock.assert_called_once_with(force_refresh=False)
+        ensure_mock.assert_not_called()
+
+    @mock.patch("ledger.context_processors.ensure_background_validation")
+    @mock.patch("ledger.context_processors.get_cached_layout_chain_status")
+    def test_context_processor_allows_force_refresh_for_staff(
+        self,
+        status_mock,
+        ensure_mock,
+    ):
+        status_mock.return_value = {
+            "chain_health": "ok",
+            "chain_is_valid": True,
+            "chain_error_count": 0,
+            "anchor_status": "valid",
+        }
+        request = SimpleNamespace(
+            user=SimpleNamespace(is_authenticated=True, is_staff=True),
+            GET={"refresh": "1"},
+        )
+
+        chain_status(request)
+
+        status_mock.assert_called_once_with(force_refresh=True)
+        ensure_mock.assert_not_called()
 
 
 class CustomerQrRenderTest(TestCase):

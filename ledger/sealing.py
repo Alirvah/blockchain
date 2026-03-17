@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from django.db import connection, transaction
 
-from .health import invalidate_chain_health_cache
+from .health import refresh_chain_validation_cache
 from .models import Block, Transfer
 
 SEAL_ADVISORY_LOCK_ID = 8_217_341
@@ -57,7 +57,7 @@ def seal_pending_transfers(*, user=None) -> SealPendingTransfersResult:
 
         Transfer.objects.filter(id__in=pending_ids).update(block=block)
         block.seal(user=user)
-        transaction.on_commit(invalidate_chain_health_cache)
+        transaction.on_commit(refresh_chain_validation_cache)
         return SealPendingTransfersResult(
             status="sealed",
             block=block,

@@ -16,6 +16,16 @@ VALIDATION_WARMUP_LOCK_TIMEOUT = 30
 LAST_VALIDATED_AT_CACHE_KEY = "ledger:last-validated-at:v1"
 
 
+def can_force_chain_refresh(request) -> bool:
+    user = getattr(request, "user", None)
+    return bool(
+        request.GET.get("refresh") == "1"
+        and user
+        and getattr(user, "is_authenticated", False)
+        and getattr(user, "is_staff", False)
+    )
+
+
 def _build_layout_status(
     chain_validation: dict[str, object],
     anchor_report: dict[str, object] | None,
@@ -57,6 +67,33 @@ def invalidate_chain_health_cache() -> None:
     )
 
 
+def _cache_chain_validation_result(
+    chain_validation: dict[str, object],
+    anchor_report: dict[str, object] | None = None,
+) -> dict[str, object]:
+    if anchor_report is None:
+        anchor_report = cache.get(ANCHOR_REPORT_CACHE_KEY)
+
+    cache.set(CHAIN_VALIDATION_CACHE_KEY, chain_validation, CACHE_TTL_SECONDS)
+    cache.set(
+        LAYOUT_STATUS_CACHE_KEY,
+        _build_layout_status(chain_validation, anchor_report),
+        CACHE_TTL_SECONDS,
+    )
+    cache.set(LAST_VALIDATED_AT_CACHE_KEY, timezone.now().isoformat(), CACHE_TTL_SECONDS)
+    return chain_validation
+
+
+def refresh_chain_validation_cache() -> dict[str, object]:
+    is_valid, errors = Block.validate_chain()
+    return _cache_chain_validation_result(
+        {
+            "is_valid": is_valid,
+            "errors": errors,
+        }
+    )
+
+
 def get_cached_chain_validation(force_refresh: bool = False) -> dict[str, object]:
     if force_refresh:
         cache.delete(CHAIN_VALIDATION_CACHE_KEY)
@@ -65,13 +102,7 @@ def get_cached_chain_validation(force_refresh: bool = False) -> dict[str, object
     if cached is not None:
         return cached
 
-    is_valid, errors = Block.validate_chain()
-    cached = {
-        "is_valid": is_valid,
-        "errors": errors,
-    }
-    cache.set(CHAIN_VALIDATION_CACHE_KEY, cached, CACHE_TTL_SECONDS)
-    return cached
+    return refresh_chain_validation_cache()
 
 
 def get_last_validation_completed_at() -> str | None:
@@ -100,21 +131,16 @@ def get_cached_anchor_report(
     cache.delete(LAYOUT_STATUS_CACHE_KEY)
     cache.set(LAST_VALIDATED_AT_CACHE_KEY, timezone.now().isoformat(), CACHE_TTL_SECONDS)
     return cached
+
+
 def _run_background_validation_refresh() -> None:
     close_old_connections()
     try:
-        is_valid, errors = Block.validate_chain()
-        chain_validation = {
-            "is_valid": is_valid,
-            "errors": errors,
-        }
+        chain_validation = refresh_chain_validation_cache()
         anchor_report = get_genesis_anchor_report()
-        layout_status = _build_layout_status(chain_validation, anchor_report)
 
-        cache.set(CHAIN_VALIDATION_CACHE_KEY, chain_validation, CACHE_TTL_SECONDS)
         cache.set(ANCHOR_REPORT_CACHE_KEY, anchor_report, CACHE_TTL_SECONDS)
-        cache.set(LAYOUT_STATUS_CACHE_KEY, layout_status, CACHE_TTL_SECONDS)
-        cache.set(LAST_VALIDATED_AT_CACHE_KEY, timezone.now().isoformat(), CACHE_TTL_SECONDS)
+        _cache_chain_validation_result(chain_validation, anchor_report)
     finally:
         cache.delete(VALIDATION_WARMUP_LOCK_KEY)
         close_old_connections()

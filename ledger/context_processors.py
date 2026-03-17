@@ -1,4 +1,5 @@
 from .health import (
+    can_force_chain_refresh,
     ensure_background_validation,
     get_cached_layout_chain_status,
     get_last_validation_completed_at,
@@ -11,10 +12,9 @@ def chain_status(request):
     if not hasattr(request, "user") or not request.user.is_authenticated:
         return {}
 
-    status = get_cached_layout_chain_status(
-        force_refresh=request.GET.get("refresh") == "1"
-    )
-    if request.GET.get("refresh") != "1" and status["anchor_status"] == "unchecked":
+    force_refresh = can_force_chain_refresh(request)
+    status = get_cached_layout_chain_status(force_refresh=force_refresh)
+    if not force_refresh and status["anchor_status"] == "unchecked":
         ensure_background_validation()
 
     status = dict(status)

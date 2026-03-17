@@ -23,6 +23,7 @@ from .forms import (
 )
 from .genesis_anchor import get_anchor_status_message
 from .health import (
+    can_force_chain_refresh,
     ensure_background_validation,
     get_cached_anchor_report,
     get_cached_chain_validation,
@@ -539,7 +540,7 @@ def seal_block(request):
 
 @login_required
 def explorer(request):
-    force_refresh = request.GET.get("refresh") == "1"
+    force_refresh = can_force_chain_refresh(request)
     total_supply = Decimal(str(settings.PATCOIN_TOTAL_SUPPLY))
     treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
     treasury_balance = treasury.balance if treasury else Decimal("0")
@@ -582,7 +583,7 @@ def explorer(request):
 @login_required
 def how_it_works(request):
     """Educational view explaining the blockchain with real data."""
-    force_refresh = request.GET.get("refresh") == "1"
+    force_refresh = can_force_chain_refresh(request)
     total_supply = Decimal(str(settings.PATCOIN_TOTAL_SUPPLY))
     treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
 
@@ -672,7 +673,7 @@ def how_it_works(request):
 
 @login_required
 def chain_validate(request):
-    force_refresh = request.GET.get("refresh") == "1"
+    force_refresh = can_force_chain_refresh(request)
     chain_validation = get_cached_chain_validation(force_refresh=force_refresh)
     blocks = Block.objects.filter(
         status__in=[Block.SEALED, Block.GENESIS]
@@ -691,7 +692,7 @@ def chain_validate(request):
 
 @login_required
 def provenance(request, wallet_id):
-    force_refresh = request.GET.get("refresh") == "1"
+    force_refresh = can_force_chain_refresh(request)
     wallet = get_object_or_404(Wallet, id=wallet_id)
 
     # Any logged-in user can view provenance (it's a transparency/verification page)

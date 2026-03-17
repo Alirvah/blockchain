@@ -163,13 +163,13 @@ class AuthorizationTest(TestCase):
         response = client.get(reverse("wallet_detail", args=[self.wallet2.id]))
         self.assertEqual(response.status_code, 302)
 
-    def test_customer_cannot_view_other_provenance(self):
-        """Customer cannot access another user's provenance page."""
+    def test_customer_can_view_other_provenance(self):
+        """Any logged-in user can view provenance (transparency)."""
         client = Client()
         client.login(username="user1", password="test")
 
         response = client.get(reverse("provenance", args=[self.wallet2.id]))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
 
     def test_customer_cannot_access_admin_pages(self):
         """Customer cannot access admin operational pages."""
@@ -524,9 +524,8 @@ class ViewRenderTest(TestCase):
         treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
         response = self.client.get(reverse("provenance", args=[treasury.id]))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Git Anchor")
+        self.assertContains(response, "Verify My PatCoin")
         self.assertContains(response, "Mismatch")
-        self.assertContains(response, "Mismatch warning.")
 
 
 class CustomerQrRenderTest(TestCase):

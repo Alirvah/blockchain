@@ -6,7 +6,7 @@
 <div class="page-header animate-in">
     <div class="breadcrumb"><a href="{% url 'dashboard' %}">Dashboard</a> <span class="sep">/</span> Send</div>
     <h2>Send PatCoin</h2>
-    <p class="subtitle">From: {{ wallet.label }} ({{ wallet.balance|patcoin }} PAT available)</p>
+    <p class="subtitle">From: {% wallet_name wallet %} ({{ wallet.balance|patcoin }} PAT available)</p>
 </div>
 
 <div class="card form-card animate-in">

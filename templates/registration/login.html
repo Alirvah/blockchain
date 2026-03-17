@@ -3,7 +3,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f1117">
     <title>PatCoin &mdash; Sign In</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -48,6 +49,10 @@
                 <div class="chain-block-node pending" style="width:32px;height:32px;font-size:0.6rem;">...</div>
             </div>
             <p class="text-muted" style="font-size:0.75rem; margin-top:0.75rem;">1,000,000 PAT &bull; Hash-linked &bull; Auditable</p>
+        </div>
+
+        <div style="text-align:center; margin-top:1rem;">
+            <p class="text-muted" style="font-size:0.8rem;">Don't have an account? <a href="{% url 'register' %}" style="color:var(--color-accent-light);">Create one</a></p>
         </div>
     </div>
 </div>

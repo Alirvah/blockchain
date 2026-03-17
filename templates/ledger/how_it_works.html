@@ -1,0 +1,505 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}How It Works &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="breadcrumb">
+        <a href="{% url 'explorer' %}">Explorer</a>
+        <span class="sep">/</span>
+        How It Works
+    </div>
+    <h2>How PatCoin Works</h2>
+    <p class="subtitle">A visual walkthrough of the real chain running right now</p>
+</div>
+
+<!-- ============================================================
+     STEP 1: THE GENESIS — WHERE IT ALL BEGINS
+     ============================================================ -->
+<div class="edu-step animate-in">
+    <div class="edu-step-number">1</div>
+    <div class="edu-step-content">
+        <h3 class="edu-step-title">The Genesis &mdash; Where It All Begins</h3>
+        <p class="edu-text">
+            Every blockchain starts with a single <strong>genesis block</strong> &mdash; block #0.
+            This block minted the entire supply of <strong class="text-accent">{{ total_supply|patcoin }} PAT</strong>
+            into the Treasury wallet. No coins existed before this moment. No coins can ever be created after it.
+        </p>
+
+        {% if genesis %}
+        <div class="edu-demo-box">
+            <div class="edu-demo-label">Live Genesis Block</div>
+            <div class="edu-detail-rows">
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Block</span>
+                    <span class="edu-detail-val">#{{ genesis.index }} ({{ genesis.status }})</span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Hash</span>
+                    <span class="edu-detail-val text-mono">{{ genesis.block_hash }}</span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Previous</span>
+                    <span class="edu-detail-val text-mono text-muted">{{ genesis.previous_hash|hash_short:16 }} (all zeros &mdash; nothing before genesis)</span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Created</span>
+                    <span class="edu-detail-val">{{ genesis.created_at|time_ago }}</span>
+                </div>
+                {% if genesis_tx %}
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Mint TX</span>
+                    <span class="edu-detail-val"><strong class="text-accent">{{ genesis_tx.amount|patcoin }} PAT</strong> minted to {% wallet_name treasury %}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="edu-insight">
+            This hash &mdash; <span class="text-mono">{{ genesis.block_hash|hash_short:20 }}</span> &mdash;
+            is a SHA-256 fingerprint of everything inside block #0. Change a single digit of any transaction,
+            and this hash would be completely different. That's what makes it tamper-proof.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ============================================================
+     STEP 2: TRANSACTIONS — MOVING MONEY
+     ============================================================ -->
+<div class="edu-step animate-in">
+    <div class="edu-step-number">2</div>
+    <div class="edu-step-content">
+        <h3 class="edu-step-title">Transactions &mdash; Moving Money</h3>
+        <p class="edu-text">
+            When someone sends PAT, a <strong>transfer</strong> is created. Each transfer gets its own
+            unique hash (a fingerprint) calculated from the sender, recipient, amount, and timestamp.
+            The transfer starts as <span class="badge badge-pending">pending</span> &mdash; it hasn't been written to the chain yet.
+        </p>
+
+        {% if example_tx %}
+        <div class="edu-demo-box">
+            <div class="edu-demo-label">Real Transfer Example</div>
+            <div class="edu-tx-visual">
+                <div class="edu-tx-party">
+                    <div class="edu-tx-party-icon edu-sender">&#8593;</div>
+                    <div class="edu-tx-party-name">{% wallet_name example_tx.sender %}</div>
+                    <div class="edu-tx-party-role">Sender</div>
+                </div>
+                <div class="edu-tx-arrow">
+                    <div class="edu-tx-amount">{{ example_tx.amount|patcoin }} PAT</div>
+                    <div class="edu-tx-arrow-line"></div>
+                </div>
+                <div class="edu-tx-party">
+                    <div class="edu-tx-party-icon edu-receiver">&#8595;</div>
+                    <div class="edu-tx-party-name">{% wallet_name example_tx.recipient %}</div>
+                    <div class="edu-tx-party-role">Recipient</div>
+                </div>
+            </div>
+            <div class="edu-detail-rows" style="margin-top:0.75rem;">
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">TX Hash</span>
+                    <span class="edu-detail-val text-mono">{{ example_tx.tx_hash }}</span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Status</span>
+                    <span class="edu-detail-val"><span class="badge {{ example_tx.status|status_badge_class }}">{{ example_tx.status }}</span>
+                    {% if example_tx.block %} in <a href="{% url 'block_detail' example_tx.block.id %}">Block #{{ example_tx.block.index }}</a>{% endif %}</span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">When</span>
+                    <span class="edu-detail-val">{{ example_tx.created_at|time_ago }}</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="edu-demo-box">
+            <div class="edu-demo-label">No user-to-user transfers yet</div>
+            <p class="edu-text" style="padding:1rem;">Once someone sends PAT to another user, a real transfer example will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ============================================================
+     STEP 3: SEALING A BLOCK — WRITING TO THE CHAIN
+     ============================================================ -->
+<div class="edu-step animate-in">
+    <div class="edu-step-number">3</div>
+    <div class="edu-step-content">
+        <h3 class="edu-step-title">Sealing a Block &mdash; Writing to the Chain</h3>
+        <p class="edu-text">
+            Pending transfers are collected into a <strong>block</strong>. When the block is <strong>sealed</strong>,
+            the system computes a SHA-256 hash of everything inside it &mdash; every transfer, the previous block's hash,
+            the timestamp, and the nonce. This hash becomes the block's permanent identity.
+        </p>
+
+        {% if sample_block %}
+        <div class="edu-demo-box">
+            <div class="edu-demo-label">Inside Block #{{ sample_block.index }}</div>
+
+            <div class="edu-hash-anatomy">
+                <div class="edu-hash-label">What goes into the hash:</div>
+                <div class="edu-hash-inputs">
+                    <div class="edu-hash-input">
+                        <span class="edu-hash-input-label">Previous hash</span>
+                        <span class="edu-hash-input-val text-mono">{{ sample_block.previous_hash|hash_short:20 }}</span>
+                    </div>
+                    <div class="edu-hash-input">
+                        <span class="edu-hash-input-label">Block index</span>
+                        <span class="edu-hash-input-val">#{{ sample_block.index }}</span>
+                    </div>
+                    <div class="edu-hash-input">
+                        <span class="edu-hash-input-label">Timestamp</span>
+                        <span class="edu-hash-input-val">{{ sample_block.created_at|time_ago }}</span>
+                    </div>
+                    <div class="edu-hash-input">
+                        <span class="edu-hash-input-label">Transfers ({{ sample_transfers|length }})</span>
+                        <span class="edu-hash-input-val">
+                            {% for tx in sample_transfers %}
+                            {{ tx.amount|patcoin }} PAT{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    <div class="edu-hash-input">
+                        <span class="edu-hash-input-label">Nonce</span>
+                        <span class="edu-hash-input-val">{{ sample_block.nonce }}</span>
+                    </div>
+                </div>
+                <div class="edu-hash-arrow">SHA-256</div>
+                <div class="edu-hash-result">
+                    <span class="edu-hash-result-label">Block Hash</span>
+                    <span class="edu-hash-result-val text-mono">{{ sample_block.block_hash }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="edu-insight">
+            Once sealed, a block is <strong>immutable</strong>. Changing even one cent of one transfer
+            would produce a completely different hash &mdash; and that would break the link to the next block.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ============================================================
+     STEP 4: THE CHAIN — BLOCKS LINKED BY HASHES
+     ============================================================ -->
+<div class="edu-step animate-in">
+    <div class="edu-step-number">4</div>
+    <div class="edu-step-content">
+        <h3 class="edu-step-title">The Chain &mdash; Blocks Linked by Hashes</h3>
+        <p class="edu-text">
+            Each block stores the <strong>hash of the previous block</strong>. This creates an unbreakable chain:
+            if you tamper with block #2, its hash changes, which means block #3's "previous hash" no longer matches,
+            which breaks block #4, and so on. The entire chain after the tampered block becomes invalid.
+        </p>
+
+        {% if link_pair %}
+        <div class="edu-demo-box">
+            <div class="edu-demo-label">How Two Blocks Link Together</div>
+            <div class="edu-link-demo">
+                <div class="edu-link-block">
+                    <div class="edu-link-block-title">Block #{{ link_pair.0.index }}</div>
+                    <div class="edu-link-field">
+                        <span class="edu-link-field-label">Hash</span>
+                        <span class="edu-link-field-val text-mono edu-highlight-hash">{{ link_pair.0.block_hash|hash_short:24 }}</span>
+                    </div>
+                </div>
+                <div class="edu-link-connector">
+                    <div class="edu-link-connector-line"></div>
+                    <div class="edu-link-connector-label">copied to</div>
+                </div>
+                <div class="edu-link-block">
+                    <div class="edu-link-block-title">Block #{{ link_pair.1.index }}</div>
+                    <div class="edu-link-field">
+                        <span class="edu-link-field-label">Prev Hash</span>
+                        <span class="edu-link-field-val text-mono edu-highlight-hash">{{ link_pair.1.previous_hash|hash_short:24 }}</span>
+                    </div>
+                    <div class="edu-link-field" style="margin-top:0.4rem;">
+                        <span class="edu-link-field-label">Hash</span>
+                        <span class="edu-link-field-val text-mono">{{ link_pair.1.block_hash|hash_short:24 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Live chain visualization -->
+        <div class="edu-demo-box" style="margin-top:1rem;">
+            <div class="edu-demo-label">The Live Chain ({{ chain_length }} blocks)</div>
+            <div class="edu-chain-scroll">
+                <div class="chain-viz" style="padding:1rem;">
+                    {% for blk in chain %}
+                    {% if not forloop.first %}<div class="chain-link"></div>{% endif %}
+                    <a href="{% url 'block_detail' blk.id %}" class="chain-block" style="text-decoration:none;">
+                        <div class="chain-block-node {{ blk.status }}">
+                            {% if blk.status == "genesis" %}G{% else %}#{{ blk.index }}{% endif %}
+                        </div>
+                        <div class="chain-block-label">{{ blk.block_hash|hash_short:8 }}</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     STEP 5: CHAIN VALIDATION — VERIFYING INTEGRITY
+     ============================================================ -->
+<div class="edu-step animate-in">
+    <div class="edu-step-number">5</div>
+    <div class="edu-step-content">
+        <h3 class="edu-step-title">Chain Validation &mdash; Verifying Integrity</h3>
+        <p class="edu-text">
+            Anyone can verify the chain by <strong>recomputing every block's hash</strong> from its contents
+            and checking that each block's "previous hash" matches the actual hash of the block before it.
+            If all hashes match, the data has not been tampered with.
+        </p>
+
+        <div class="edu-demo-box">
+            <div class="edu-demo-label">Live Validation Result</div>
+            <div class="edu-validation-result {% if chain_valid %}edu-valid{% else %}edu-invalid{% endif %}">
+                <div class="edu-validation-icon">{% if chain_valid %}&#10003;{% else %}&#10007;{% endif %}</div>
+                <div class="edu-validation-text">
+                    {% if chain_valid %}
+                        <strong>Chain is valid.</strong> All {{ chain_length }} blocks verified &mdash; every hash matches,
+                        every link is intact. No data has been tampered with.
+                    {% else %}
+                        <strong>Chain has issues.</strong>
+                        {% for err in chain_errors %}
+                        <div class="edu-validation-error">{{ err }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="edu-insight">
+            This validation runs on the live database right now. It recomputes the SHA-256 hash
+            for every sealed block and checks all {{ chain_length }} links. If even one byte was changed anywhere
+            in the chain's history, this check would fail.
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     STEP 6: ALL TRANSACTIONS — THE FULL LEDGER
+     ============================================================ -->
+<div class="edu-step animate-in">
+    <div class="edu-step-number">6</div>
+    <div class="edu-step-content">
+        <h3 class="edu-step-title">All Transactions &mdash; The Full Ledger</h3>
+        <p class="edu-text">
+            Every confirmed transfer on the chain is listed below with its full cryptographic hash,
+            sender, recipient, amount, memo, and the block it was sealed in.
+            Each hash is a SHA-256 fingerprint &mdash; unique proof that this exact transfer exists.
+        </p>
+
+        {% for tx in all_transfers %}
+        <div class="edu-demo-box" style="margin-bottom:0.5rem;">
+            <div class="edu-demo-label">
+                {% if tx.sender %}Transfer{% else %}Genesis Mint{% endif %}
+                &mdash; {{ tx.amount|patcoin }} PAT
+                {% if tx.block %}&middot; Block #{{ tx.block.index }}{% endif %}
+            </div>
+            <div class="edu-detail-rows">
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">TX Hash</span>
+                    <span class="edu-detail-val text-mono" style="font-size:0.68rem;">{{ tx.tx_hash }}</span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">From</span>
+                    <span class="edu-detail-val">
+                        {% if tx.sender %}
+                            {% wallet_name tx.sender %}
+                            <span class="text-muted text-mono" style="font-size:0.65rem;margin-left:0.3rem;">{{ tx.sender.address }}</span>
+                        {% else %}
+                            <span class="badge badge-genesis">MINT</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">To</span>
+                    <span class="edu-detail-val">
+                        {% wallet_name tx.recipient %}
+                        <span class="text-muted text-mono" style="font-size:0.65rem;margin-left:0.3rem;">{{ tx.recipient.address }}</span>
+                    </span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Amount</span>
+                    <span class="edu-detail-val"><strong class="text-accent">{{ tx.amount|patcoin }} PAT</strong></span>
+                </div>
+                {% if tx.memo %}
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Memo</span>
+                    <span class="edu-detail-val">{{ tx.memo }}</span>
+                </div>
+                {% endif %}
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Block</span>
+                    <span class="edu-detail-val">
+                        {% if tx.block %}
+                            <a href="{% url 'block_detail' tx.block.id %}">#{{ tx.block.index }}</a>
+                            <span class="text-muted text-mono" style="font-size:0.65rem;margin-left:0.3rem;">{{ tx.block.block_hash }}</span>
+                        {% else %}
+                            <span class="text-muted">&mdash;</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Status</span>
+                    <span class="edu-detail-val"><span class="badge {{ tx.status|status_badge_class }}">{{ tx.status }}</span></span>
+                </div>
+                <div class="edu-detail-row">
+                    <span class="edu-detail-key">Time</span>
+                    <span class="edu-detail-val">{{ tx.created_at|time_ago }}</span>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="edu-demo-box">
+            <div class="edu-demo-label">No confirmed transfers yet</div>
+            <p class="edu-text" style="padding:1rem;">Transfers will appear here once they are sealed into blocks.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ============================================================
+     STEP 7: THE GENESIS ANCHOR — PROOF BEYOND THE DATABASE
+     ============================================================ -->
+<div class="edu-step animate-in">
+    <div class="edu-step-number">7</div>
+    <div class="edu-step-content">
+        <h3 class="edu-step-title">The Genesis Anchor &mdash; Proof Beyond the Database</h3>
+        <p class="edu-text">
+            Chain validation proves internal consistency, but what if someone replaced the <em>entire</em> database?
+            That's where the <strong>genesis anchor</strong> comes in. The genesis block's hash is saved in a file
+            (<span class="text-mono text-accent">anchors/genesis.json</span>) and committed to a <strong>public git repository</strong>.
+        </p>
+        <p class="edu-text">
+            Git commits are cryptographically signed. Anyone can go to the public repository, find the commit
+            that wrote the anchor file, and compare the hash inside it to the hash in the live database.
+            If they match, the genesis block &mdash; the root of trust &mdash; has not been replaced.
+        </p>
+
+        <div class="edu-demo-box">
+            <div class="edu-demo-label">Live Anchor Status</div>
+
+            <div class="edu-anchor-flow">
+                <!-- Anchor file -->
+                <div class="edu-anchor-node">
+                    <div class="edu-anchor-node-icon">&#128196;</div>
+                    <div class="edu-anchor-node-title">Anchor File</div>
+                    <div class="edu-anchor-node-sub text-mono">
+                        {% if anchor_report.anchor %}{{ anchor_report.anchor.block.block_hash|hash_short:20 }}{% else %}Not found{% endif %}
+                    </div>
+                </div>
+
+                <div class="edu-anchor-connector">
+                    <div class="edu-anchor-connector-line"></div>
+                    {% if anchor_report.db_matches_anchor %}
+                    <div class="edu-anchor-connector-badge edu-match">= match</div>
+                    {% else %}
+                    <div class="edu-anchor-connector-badge edu-no-match">&#8800; mismatch</div>
+                    {% endif %}
+                </div>
+
+                <!-- Live database -->
+                <div class="edu-anchor-node">
+                    <div class="edu-anchor-node-icon">&#128451;</div>
+                    <div class="edu-anchor-node-title">Live Database</div>
+                    <div class="edu-anchor-node-sub text-mono">
+                        {% if anchor_report.live %}{{ anchor_report.live.block.block_hash|hash_short:20 }}{% else %}No genesis{% endif %}
+                    </div>
+                </div>
+
+                <div class="edu-anchor-connector">
+                    <div class="edu-anchor-connector-line"></div>
+                    {% if anchor_report.git.remote_verified %}
+                    <div class="edu-anchor-connector-badge edu-match">&#10003; verified</div>
+                    {% else %}
+                    <div class="edu-anchor-connector-badge edu-pending">? unverified</div>
+                    {% endif %}
+                </div>
+
+                <!-- Git remote -->
+                <div class="edu-anchor-node">
+                    <div class="edu-anchor-node-icon">&#9741;</div>
+                    <div class="edu-anchor-node-title">Git Remote</div>
+                    <div class="edu-anchor-node-sub">
+                        {% if anchor_report.git.commit_url %}
+                        <a href="{{ anchor_report.git.commit_url }}" target="_blank" rel="noopener">View commit &#8599;</a>
+                        {% elif anchor_report.git.commit_short %}
+                        Commit {{ anchor_report.git.commit_short }}
+                        {% else %}
+                        Not available
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="edu-anchor-status-bar {% if anchor_report.status == 'valid' %}edu-status-valid{% elif anchor_report.status == 'mismatch' %}edu-status-danger{% else %}edu-status-warn{% endif %}">
+                <span class="badge {{ anchor_report.status|anchor_status_badge_class }}">{{ anchor_report.status|anchor_status_label }}</span>
+                {% if anchor_report.status == "valid" %}
+                    The anchor file matches the live database, and the git commit is verified on the remote.
+                {% elif anchor_report.status == "remote_unverified" or anchor_report.status == "git_unavailable" %}
+                    The anchor file matches the live database, but the git commit hasn't been verified remotely yet.
+                {% elif anchor_report.status == "mismatch" %}
+                    The anchor file does NOT match the live database. The genesis block may have been tampered with.
+                {% else %}
+                    No anchor file has been created yet.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     STEP 8: PUTTING IT ALL TOGETHER
+     ============================================================ -->
+<div class="edu-step animate-in">
+    <div class="edu-step-number">&#10003;</div>
+    <div class="edu-step-content">
+        <h3 class="edu-step-title">Putting It All Together</h3>
+        <p class="edu-text">
+            The trust model works in layers, from the inside out:
+        </p>
+
+        <div class="edu-trust-layers">
+            <div class="edu-trust-layer edu-layer-1">
+                <div class="edu-trust-layer-num">1</div>
+                <div class="edu-trust-layer-body">
+                    <strong>Transaction hashes</strong> ensure no individual transfer can be modified without detection.
+                </div>
+            </div>
+            <div class="edu-trust-layer edu-layer-2">
+                <div class="edu-trust-layer-num">2</div>
+                <div class="edu-trust-layer-body">
+                    <strong>Block hashes</strong> seal groups of transfers into immutable units. One changed byte changes the hash.
+                </div>
+            </div>
+            <div class="edu-trust-layer edu-layer-3">
+                <div class="edu-trust-layer-num">3</div>
+                <div class="edu-trust-layer-body">
+                    <strong>Hash-linked chain</strong> makes it impossible to tamper with past blocks without breaking all subsequent links.
+                </div>
+            </div>
+            <div class="edu-trust-layer edu-layer-4">
+                <div class="edu-trust-layer-num">4</div>
+                <div class="edu-trust-layer-body">
+                    <strong>Genesis anchor</strong> ties the root of the chain to a public, immutable git commit &mdash; proof that extends beyond this server.
+                </div>
+            </div>
+        </div>
+
+        <div class="edu-cta-row">
+            <a href="{% url 'explorer' %}" class="btn btn-primary">View the Explorer</a>
+            <a href="{% url 'block_list' %}" class="btn btn-secondary">Browse Blocks</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

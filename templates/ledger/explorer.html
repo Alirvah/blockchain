@@ -64,7 +64,7 @@
             </div>
             {% endif %}
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+            <div class="explorer-chain-stats mt-2">
                 <div>
                     <div class="text-muted" style="font-size:0.75rem;">Chain Height</div>
                     <div style="font-size:1.5rem;font-weight:700;">{% if chain_tip %}{{ chain_tip.index }}{% else %}0{% endif %}</div>
@@ -93,7 +93,7 @@
         <h3 class="section-title">Genesis Anchor</h3>
     </div>
     <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <div class="anchor-trust-header">
             <div>
                 <div class="form-label">Trust Status</div>
                 <span class="badge {{ anchor_report.status|anchor_status_badge_class }}">{{ anchor_report.status|anchor_status_label }}</span>
@@ -111,7 +111,7 @@
 
         <div class="mt-2 text-dim" style="font-size:0.9rem;">{{ anchor_status_message }}</div>
 
-        <div class="grid-2 mt-2" style="gap:1rem;">
+        <div class="anchor-detail-grid mt-2">
             <div>
                 <div class="form-label">Anchored Genesis Hash</div>
                 <div class="hash hash-full">
@@ -126,7 +126,7 @@
             </div>
         </div>
 
-        <div class="grid-2 mt-2" style="gap:1rem;">
+        <div class="anchor-detail-grid mt-2">
             <div>
                 <div class="form-label">Manifest Path</div>
                 <div class="text-mono text-dim">{{ anchor_report.manifest_path }}</div>
@@ -147,10 +147,10 @@
             </div>
         </div>
 
-        <div class="grid-2 mt-2" style="gap:1rem;">
+        <div class="anchor-detail-grid mt-2">
             <div>
                 <div class="form-label">Anchored Project</div>
-                <div class="text-dim">
+                <div class="text-dim" style="word-break:break-all;">
                     {% if anchor_report.git.project_url %}
                     <a href="{{ anchor_report.git.project_url }}" target="_blank" rel="noopener noreferrer">{{ anchor_report.git.project_url }}</a>
                     {% elif anchor_report.git.remote_url %}
@@ -162,7 +162,7 @@
             </div>
             <div>
                 <div class="form-label">Anchored Commit</div>
-                <div class="text-dim text-mono">
+                <div class="text-dim text-mono" style="word-break:break-all;">
                     {% if anchor_report.git.commit_url %}
                     <a href="{{ anchor_report.git.commit_url }}" target="_blank" rel="noopener noreferrer" class="text-mono">{{ anchor_report.git.commit_sha }}</a>
                     {% elif anchor_report.git.commit_sha %}
@@ -238,8 +238,8 @@
                 {% for tx in recent_transfers %}
                 <tr>
                     <td class="text-mono">{{ tx.tx_hash|hash_short }}</td>
-                    <td>{% if tx.sender %}{{ tx.sender.label }}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>
-                    <td>{{ tx.recipient.label }}</td>
+                    <td>{% if tx.sender %}{% wallet_name tx.sender %}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>
+                    <td>{% wallet_name tx.recipient %}</td>
                     <td class="text-accent">{{ tx.amount|patcoin }} PAT</td>
                     <td>{% if tx.block %}<a href="{% url 'block_detail' tx.block.id %}">#{{ tx.block.index }}</a>{% endif %}</td>
                     <td class="text-dim">{{ tx.created_at|time_ago }}</td>

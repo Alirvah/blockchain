@@ -82,3 +82,15 @@ def time_ago(value):
     if not value:
         return "—"
     return timesince(value) + " ago"
+
+
+@register.simple_tag(takes_context=True)
+def wallet_name(context, wallet):
+    """Show wallet label for admins, truncated address for regular users."""
+    if not wallet:
+        return "—"
+    user = context.get("user")
+    if user and user.is_staff:
+        return wallet.label
+    addr = wallet.address
+    return f"{addr[:8]}…{addr[-4:]}"

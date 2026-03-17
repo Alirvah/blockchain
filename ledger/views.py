@@ -41,6 +41,31 @@ def login_view(request):
     return render(request, "registration/login.html", {"form": form})
 
 
+def register_view(request):
+    """Public self-registration — no invite required."""
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+
+    form = InviteRegistrationForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=form.cleaned_data["username"],
+                email=form.cleaned_data.get("email", ""),
+                password=form.cleaned_data["password"],
+            )
+            Wallet.objects.create(
+                label=f"{user.username}'s Wallet",
+                wallet_type=Wallet.CUSTOMER,
+                owner=user,
+            )
+        login(request, user)
+        messages.success(request, "Welcome to PatCoin! Your wallet has been created.")
+        return redirect("dashboard")
+
+    return render(request, "registration/register.html", {"form": form})
+
+
 def invite_registration_url(request, invite):
     return request.build_absolute_uri(
         reverse("invite_register", kwargs={"token": invite.token})
@@ -417,11 +442,11 @@ def block_list(request):
 
 @login_required
 def block_detail(request, block_id):
-    block = get_object_or_404(Block, id=block_id)
+    block = get_object_or_404(Block.objects.select_related("sealed_by"), id=block_id)
     if not request.user.is_staff and block.status == Block.PENDING:
         return redirect("block_list")
     transfers = block.transfers.select_related("sender", "recipient").order_by("created_at")
-    return render(request, "ledger/block_detail.html", {"block": block, "transfers": transfers})
+    return render(request, "ledger/block_detail.html", {"blk": block, "transfers": transfers})
 
 
 @login_required
@@ -507,6 +532,86 @@ def explorer(request):
 
 
 # ---------------------------------------------------------------------------
+# How It Works (educational)
+# ---------------------------------------------------------------------------
+
+@login_required
+def how_it_works(request):
+    """Educational view explaining the blockchain with real data."""
+    total_supply = Decimal(str(settings.PATCOIN_TOTAL_SUPPLY))
+    treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
+
+    # Genesis block — the root of everything
+    genesis = Block.objects.filter(status=Block.GENESIS).first()
+    genesis_tx = None
+    if genesis:
+        genesis_tx = genesis.transfers.select_related("sender", "recipient").first()
+
+    # Full chain for the walkthrough
+    chain = list(
+        Block.objects.filter(status__in=[Block.SEALED, Block.GENESIS])
+        .order_by("index")
+        .prefetch_related("transfers")
+    )
+
+    # Pick a sample sealed block (latest) to demonstrate hashing
+    sample_block = None
+    sample_transfers = []
+    for b in reversed(chain):
+        if b.status == Block.SEALED:
+            sample_block = b
+            sample_transfers = list(
+                b.transfers.select_related("sender", "recipient").order_by("created_at")
+            )
+            break
+
+    # Show a pair of adjacent blocks to demonstrate linkage
+    link_pair = None
+    for i in range(1, len(chain)):
+        if chain[i].status == Block.SEALED:
+            link_pair = (chain[i - 1], chain[i])
+
+    # Chain validation — live
+    is_valid, chain_errors = Block.validate_chain()
+
+    # Anchor data — live
+    anchor_report = get_genesis_anchor_report()
+
+    # A recent confirmed transfer to use as example
+    example_tx = (
+        Transfer.objects.filter(status=Transfer.CONFIRMED)
+        .exclude(sender__isnull=True)
+        .select_related("sender", "recipient", "block")
+        .order_by("-created_at")
+        .first()
+    )
+
+    # All confirmed transfers for the full ledger view
+    all_transfers = (
+        Transfer.objects.filter(status=Transfer.CONFIRMED)
+        .select_related("sender", "recipient", "block")
+        .order_by("created_at")
+    )
+
+    return render(request, "ledger/how_it_works.html", {
+        "total_supply": total_supply,
+        "treasury": treasury,
+        "genesis": genesis,
+        "genesis_tx": genesis_tx,
+        "chain": chain,
+        "chain_length": len(chain),
+        "sample_block": sample_block,
+        "sample_transfers": sample_transfers,
+        "link_pair": link_pair,
+        "chain_valid": is_valid,
+        "chain_errors": chain_errors,
+        "anchor_report": anchor_report,
+        "example_tx": example_tx,
+        "all_transfers": all_transfers,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Chain validation
 # ---------------------------------------------------------------------------
 
@@ -533,9 +638,7 @@ def chain_validate(request):
 def provenance(request, wallet_id):
     wallet = get_object_or_404(Wallet, id=wallet_id)
 
-    # Customers can only view their own wallet provenance
-    if not request.user.is_staff and wallet.owner != request.user:
-        return redirect("dashboard")
+    # Any logged-in user can view provenance (it's a transparency/verification page)
 
     # Trace the lineage: walk incoming transfers back to genesis
     lineage = []
@@ -565,7 +668,67 @@ def provenance(request, wallet_id):
     treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
 
     reaches_genesis = any(tx.sender is None for tx in lineage)
+
+    # Chain validation
+    chain_valid, chain_errors = Block.validate_chain()
+
+    # Anchor verification
     anchor_report = get_genesis_anchor_report()
+
+    # Collect the unique blocks that carry this wallet's lineage
+    lineage_block_ids = {tx.block_id for tx in lineage if tx.block_id}
+    lineage_blocks = list(
+        Block.objects.filter(id__in=lineage_block_ids)
+        .order_by("index")
+    )
+
+    # All wallet transactions (not just lineage), most recent first
+    all_transfers = Transfer.objects.filter(
+        models.Q(sender=wallet) | models.Q(recipient=wallet)
+    ).select_related("sender", "recipient", "block").order_by("-created_at")
+
+    # Build verification steps
+    checks = []
+    checks.append({
+        "label": "Genesis block exists",
+        "ok": genesis_block is not None,
+        "detail": f"Block #0 hash {genesis_block.block_hash[:16]}..." if genesis_block else "No genesis block found",
+    })
+    checks.append({
+        "label": "Chain hashes are valid",
+        "ok": chain_valid,
+        "detail": "All block hashes verified" if chain_valid else f"{len(chain_errors)} error(s) found",
+    })
+    checks.append({
+        "label": "Genesis anchored to file",
+        "ok": anchor_report.get("anchor_exists", False),
+        "detail": anchor_report["manifest_path"],
+    })
+    checks.append({
+        "label": "Anchor matches live database",
+        "ok": anchor_report.get("db_matches_anchor", False),
+        "detail": "Hashes match" if anchor_report.get("db_matches_anchor") else "Mismatch or anchor missing",
+    })
+    checks.append({
+        "label": "Anchor commit on remote",
+        "ok": anchor_report["git"].get("remote_verified", False),
+        "detail": (
+            f"Verified on {anchor_report['git'].get('remote_name', 'origin')}"
+            if anchor_report["git"].get("remote_verified")
+            else "Not yet verified remotely"
+        ),
+    })
+    checks.append({
+        "label": "Funds trace to genesis mint",
+        "ok": reaches_genesis,
+        "detail": (
+            f"Verified through {len(lineage)} transfer(s)"
+            if reaches_genesis
+            else "No confirmed path to genesis"
+        ),
+    })
+
+    all_ok = all(c["ok"] for c in checks)
 
     return render(request, "ledger/provenance.html", {
         "wallet": wallet,
@@ -573,8 +736,13 @@ def provenance(request, wallet_id):
         "genesis_block": genesis_block,
         "treasury": treasury,
         "reaches_genesis": reaches_genesis,
+        "chain_valid": chain_valid,
         "anchor_report": anchor_report,
         "anchor_status_message": get_anchor_status_message(anchor_report),
+        "lineage_blocks": lineage_blocks,
+        "all_transfers": all_transfers,
+        "checks": checks,
+        "all_checks_pass": all_ok,
     })
 
 

@@ -6,7 +6,8 @@ from . import views
 urlpatterns = [
     # Auth
     path("login/", views.login_view, name="login"),
-    path("logout/", LogoutView.as_view(), name="logout"),
+    path("logout/", LogoutView.as_view(next_page="login"), name="logout"),
+    path("register/", views.register_view, name="register"),
     path("register/<uuid:token>/", views.invite_register, name="invite_register"),
 
     # Dashboard
@@ -39,6 +40,7 @@ urlpatterns = [
     # Explorer
     path("explorer/", views.explorer, name="explorer"),
     path("chain/validate/", views.chain_validate, name="chain_validate"),
+    path("how-it-works/", views.how_it_works, name="how_it_works"),
 
     # Provenance
     path("provenance/<uuid:wallet_id>/", views.provenance, name="provenance"),

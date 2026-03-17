@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>{% block title %}PatCoin{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -12,6 +15,18 @@
 <body>
 {% block body %}
 <div class="app-layout">
+    <!-- Mobile Top App Bar -->
+    <header class="mobile-header">
+        {% if chain_health %}
+        <a href="{% url 'explorer' %}" class="mobile-chain-dot chain-status-{{ chain_health }}" aria-label="Chain status"></a>
+        {% endif %}
+        <div class="mobile-brand">
+            <span class="logo-icon">P</span> PatCoin
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menu">&#9776;</button>
+    </header>
+
+    <!-- Desktop sidebar toggle (hidden on mobile, replaced by bottom nav) -->
     <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
@@ -25,32 +40,32 @@
             {% if user.is_staff %}
             <div class="nav-section">
                 <div class="nav-section-title">Operations</div>
-                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#9670;</span> Dashboard
                 </a>
-                <a href="{% url 'wallet_list' %}" class="nav-link {% if 'wallet' in request.resolver_match.url_name %}active{% endif %}">
+                <a href="{% url 'wallet_list' %}" class="nav-link {% if 'wallet' in request.resolver_match.url_name %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#9733;</span> Wallets
                 </a>
-                <a href="{% url 'user_list' %}" class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
+                <a href="{% url 'user_list' %}" class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#9823;</span> Users
                 </a>
-                <a href="{% url 'invite_list' %}" class="nav-link {% if 'invite' in request.resolver_match.url_name %}active{% endif %}">
+                <a href="{% url 'invite_list' %}" class="nav-link {% if 'invite' in request.resolver_match.url_name %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#128279;</span> Invites
                 </a>
-                <a href="{% url 'transfer_list' %}" class="nav-link {% if request.resolver_match.url_name == 'transfer_list' or request.resolver_match.url_name == 'transfer_create' %}active{% endif %}">
+                <a href="{% url 'transfer_list' %}" class="nav-link {% if request.resolver_match.url_name == 'transfer_list' or request.resolver_match.url_name == 'transfer_create' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#8644;</span> Transfers
                 </a>
-                <a href="{% url 'pending_queue' %}" class="nav-link {% if request.resolver_match.url_name == 'pending_queue' %}active{% endif %}">
+                <a href="{% url 'pending_queue' %}" class="nav-link {% if request.resolver_match.url_name == 'pending_queue' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#9203;</span> Pending Queue
                 </a>
             </div>
             {% else %}
             <div class="nav-section">
                 <div class="nav-section-title">My Account</div>
-                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#9670;</span> Dashboard
                 </a>
-                <a href="{% url 'customer_send' %}" class="nav-link {% if request.resolver_match.url_name == 'customer_send' %}active{% endif %}">
+                <a href="{% url 'customer_send' %}" class="nav-link {% if request.resolver_match.url_name == 'customer_send' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#10148;</span> Send PAT
                 </a>
             </div>
@@ -58,19 +73,35 @@
 
             <div class="nav-section">
                 <div class="nav-section-title">Explorer</div>
-                <a href="{% url 'explorer' %}" class="nav-link {% if request.resolver_match.url_name == 'explorer' %}active{% endif %}">
+                <a href="{% url 'explorer' %}" class="nav-link {% if request.resolver_match.url_name == 'explorer' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#9783;</span> Overview
                 </a>
-                <a href="{% url 'block_list' %}" class="nav-link {% if 'block' in request.resolver_match.url_name %}active{% endif %}">
+                <a href="{% url 'block_list' %}" class="nav-link {% if 'block' in request.resolver_match.url_name %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#9638;</span> Blocks
                 </a>
+                <a href="{% url 'how_it_works' %}" class="nav-link {% if request.resolver_match.url_name == 'how_it_works' %}active{% endif %}" onclick="closeSidebarMobile()">
+                    <span class="nav-icon">&#9881;</span> How It Works
+                </a>
                 {% if user.is_staff %}
-                <a href="{% url 'chain_validate' %}" class="nav-link {% if request.resolver_match.url_name == 'chain_validate' %}active{% endif %}">
+                <a href="{% url 'chain_validate' %}" class="nav-link {% if request.resolver_match.url_name == 'chain_validate' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#10003;</span> Validate Chain
                 </a>
                 {% endif %}
             </div>
         </nav>
+
+        {% if chain_health %}
+        <a href="{% url 'explorer' %}" class="chain-status-pill chain-status-{{ chain_health }}" onclick="closeSidebarMobile()">
+            <span class="chain-status-dot"></span>
+            <span class="chain-status-text">
+                {% if chain_health == "ok" %}Chain Verified
+                {% elif chain_health == "local" %}Chain Valid &middot; Local Only
+                {% elif chain_health == "warning" %}Anchor Issue
+                {% else %}Chain Integrity Issue
+                {% endif %}
+            </span>
+        </a>
+        {% endif %}
 
         <div class="sidebar-footer">
             <div class="sidebar-user">
@@ -78,9 +109,12 @@
                 <span>{{ user.username }}</span>
                 {% if user.is_staff %}<span class="badge badge-sealed" style="margin-left:auto;">Admin</span>{% endif %}
             </div>
-            <a href="{% url 'logout' %}" class="nav-link" style="padding:0.3rem 0; font-size:0.8rem;">
-                <span class="nav-icon">&#10140;</span> Sign out
-            </a>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="nav-link sidebar-logout-btn">
+                    <span class="nav-icon">&#10140;</span> Sign out
+                </button>
+            </form>
         </div>
     </aside>
 
@@ -95,10 +129,64 @@
     </main>
 </div>
 
+<!-- Mobile Bottom Tab Bar -->
+{% if user.is_staff %}
+<nav class="mobile-bottom-nav">
+    <div class="bottom-nav-inner">
+        <a href="{% url 'dashboard' %}" class="bottom-tab {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <span class="tab-icon">&#9670;</span>
+            <span class="tab-label">Dashboard</span>
+        </a>
+        <a href="{% url 'transfer_list' %}" class="bottom-tab {% if request.resolver_match.url_name == 'transfer_list' or request.resolver_match.url_name == 'transfer_create' %}active{% endif %}">
+            <span class="tab-icon">&#8644;</span>
+            <span class="tab-label">Transfers</span>
+        </a>
+        <a href="{% url 'explorer' %}" class="bottom-tab {% if request.resolver_match.url_name == 'explorer' %}active{% endif %}">
+            <span class="tab-icon">&#9783;</span>
+            <span class="tab-label">Explorer</span>
+        </a>
+        <button class="bottom-tab" onclick="toggleSidebar()">
+            <span class="tab-icon">&#9776;</span>
+            <span class="tab-label">More</span>
+        </button>
+    </div>
+</nav>
+{% else %}
+<nav class="mobile-bottom-nav">
+    <div class="bottom-nav-inner">
+        <a href="{% url 'dashboard' %}" class="bottom-tab {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <span class="tab-icon">&#9670;</span>
+            <span class="tab-label">Wallet</span>
+        </a>
+        <a href="{% url 'customer_send' %}" class="bottom-tab {% if request.resolver_match.url_name == 'customer_send' %}active{% endif %}">
+            <span class="tab-icon">&#10148;</span>
+            <span class="tab-label">Send</span>
+        </a>
+        <a href="{% url 'explorer' %}" class="bottom-tab {% if request.resolver_match.url_name == 'explorer' %}active{% endif %}">
+            <span class="tab-icon">&#9783;</span>
+            <span class="tab-label">Explorer</span>
+        </a>
+        <button class="bottom-tab" onclick="toggleSidebar()">
+            <span class="tab-icon">&#9776;</span>
+            <span class="tab-label">More</span>
+        </button>
+    </div>
+</nav>
+{% endif %}
+
 <script>
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebarOverlay').classList.toggle('open');
+    document.body.style.overflow = document.getElementById('sidebar').classList.contains('open') ? 'hidden' : '';
+}
+
+function closeSidebarMobile() {
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('open');
+        document.body.style.overflow = '';
+    }
 }
 </script>
 {% endblock %}

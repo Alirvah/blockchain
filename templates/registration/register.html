@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f1117">
+    <title>PatCoin &mdash; Create Account</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<div class="login-page">
+    <div class="login-card animate-in">
+        <div class="login-brand">
+            <div class="logo-lg">P</div>
+            <h1>Create Account</h1>
+            <p>Sign up to get your own PatCoin wallet and start transacting.</p>
+        </div>
+
+        {% if form.errors %}
+        <div class="alert alert-error">
+            {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+            {% for field, errors in form.errors.items %}
+                {% if field != '__all__' %}{% for error in errors %}<div>{{ error }}</div>{% endfor %}{% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label" for="id_username">Username</label>
+                <input type="text" name="username" id="id_username" class="form-input" value="{{ form.username.value|default:'' }}" autofocus required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="id_email">Email (optional)</label>
+                <input type="email" name="email" id="id_email" class="form-input" value="{{ form.email.value|default:'' }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="id_password">Password</label>
+                <input type="password" name="password" id="id_password" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="id_confirm_password">Confirm Password</label>
+                <input type="password" name="confirm_password" id="id_confirm_password" class="form-input" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:0.5rem;">
+                Create Account
+            </button>
+        </form>
+
+        <div style="text-align:center; margin-top:1.25rem;">
+            <p class="text-muted" style="font-size:0.8rem;">Already have an account? <a href="{% url 'login' %}" style="color:var(--color-accent-light);">Sign in</a></p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

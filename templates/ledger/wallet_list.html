@@ -28,7 +28,7 @@
         <tbody>
             {% for wallet in wallets %}
             <tr>
-                <td><strong>{{ wallet.label }}</strong></td>
+                <td><strong>{% wallet_name wallet %}</strong></td>
                 <td><span class="badge {% if wallet.wallet_type == 'treasury' %}badge-genesis{% else %}badge-default{% endif %}">{{ wallet.wallet_type }}</span></td>
                 <td class="text-mono">{{ wallet.address|address_short }}</td>
                 <td>{% if wallet.owner %}{{ wallet.owner.username }}{% else %}<span class="text-muted">—</span>{% endif %}</td>

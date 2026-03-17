@@ -28,32 +28,30 @@
             <div class="stat-label">Wallet ID</div>
             <div class="hash" style="font-size:0.75rem; word-break:break-all;">{{ wallet.id }}</div>
         </div>
-        <div class="btn-group">
-            <a href="{% url 'customer_send' %}" class="btn btn-primary" style="flex:1;justify-content:center;">Send PAT</a>
-            <a href="{% url 'provenance' wallet.id %}" class="btn btn-secondary" style="flex:1;justify-content:center;">Verify from Genesis</a>
+        <div class="btn-group" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+            <a href="{% url 'customer_send' %}" class="btn btn-primary" style="justify-content:center;">Send PAT</a>
+            <a href="{% url 'provenance' wallet.id %}" class="btn btn-secondary" style="justify-content:center;">Verify</a>
         </div>
     </div>
 </div>
 
-<div class="grid-2 mb-3">
-    <div class="card animate-in">
-        <div class="card-header">
-            <span class="card-title">Receive PatCoin</span>
+<div class="card animate-in mb-3">
+    <div class="card-header">
+        <span class="card-title">Receive PatCoin</span>
+    </div>
+    <div class="qr-panel">
+        <div>
+            <div id="walletReceiveQr" class="qr-canvas" data-address="{{ wallet.address }}"></div>
+            <div class="qr-caption">Scan to autofill this wallet address</div>
         </div>
-        <div class="qr-panel">
-            <div>
-                <div id="walletReceiveQr" class="qr-canvas" data-address="{{ wallet.address }}"></div>
-                <div class="qr-caption">Scan to autofill this wallet address</div>
-            </div>
-            <div class="qr-meta">
-                <div class="form-label">PatCoin URI</div>
-                <div class="hash hash-full" id="walletReceiveUri">patcoin:{{ wallet.address }}</div>
-                <div class="form-label mt-2">Wallet Address</div>
-                <div class="hash hash-full">{{ wallet.address }}</div>
-                <div class="btn-group mt-2">
-                    <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('{{ wallet.address }}')">Copy Address</button>
-                    <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('patcoin:{{ wallet.address }}')">Copy URI</button>
-                </div>
+        <div class="qr-meta">
+            <div class="form-label">PatCoin URI</div>
+            <div class="hash hash-full" id="walletReceiveUri">patcoin:{{ wallet.address }}</div>
+            <div class="form-label mt-2">Wallet Address</div>
+            <div class="hash hash-full">{{ wallet.address }}</div>
+            <div class="btn-group mt-2">
+                <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('{{ wallet.address }}')">Copy Address</button>
+                <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('patcoin:{{ wallet.address }}')">Copy URI</button>
             </div>
         </div>
     </div>
@@ -64,37 +62,82 @@
         <h3 class="section-title">Recent Transfers</h3>
         <a href="{% url 'wallet_detail' wallet.id %}" class="btn btn-sm btn-secondary">Full history</a>
     </div>
-    <div class="table-container">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Type</th>
-                    <th>Counterparty</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Time</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for tx in recent_transfers %}
-                <tr>
-                    {% if tx.recipient == wallet %}
-                    <td><span class="text-success">&#8595; Received</span></td>
-                    <td>{% if tx.sender %}{{ tx.sender.label }}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>
-                    <td class="text-success">+{{ tx.amount|patcoin }} PAT</td>
-                    {% else %}
-                    <td><span class="text-danger">&#8593; Sent</span></td>
-                    <td>{{ tx.recipient.label }}</td>
-                    <td class="text-danger">-{{ tx.amount|patcoin }} PAT</td>
-                    {% endif %}
-                    <td><span class="badge {{ tx.status|status_badge_class }}">{{ tx.status }}</span></td>
-                    <td class="text-dim">{{ tx.created_at|time_ago }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="5" class="text-center text-muted" style="padding:2rem;">No transfers yet.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+    <!-- Mobile card list (shown on small screens) -->
+    <div class="mobile-tx-list">
+        {% for tx in recent_transfers %}
+        <div class="mobile-tx-card">
+            {% if tx.recipient == wallet %}
+            <div class="mobile-tx-row">
+                <div class="mobile-tx-type">
+                    <span class="mobile-tx-icon text-success">&#8595;</span>
+                    <div>
+                        <div class="mobile-tx-label">Received</div>
+                        <div class="mobile-tx-party">{% if tx.sender %}{% wallet_name tx.sender %}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</div>
+                    </div>
+                </div>
+                <div class="mobile-tx-right">
+                    <div class="mobile-tx-amount text-success">+{{ tx.amount|patcoin }}</div>
+                    <div class="mobile-tx-meta"><span class="badge {{ tx.status|status_badge_class }}">{{ tx.status }}</span> &middot; {{ tx.created_at|time_ago }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="mobile-tx-row">
+                <div class="mobile-tx-type">
+                    <span class="mobile-tx-icon text-danger">&#8593;</span>
+                    <div>
+                        <div class="mobile-tx-label">Sent</div>
+                        <div class="mobile-tx-party">{% wallet_name tx.recipient %}</div>
+                    </div>
+                </div>
+                <div class="mobile-tx-right">
+                    <div class="mobile-tx-amount text-danger">-{{ tx.amount|patcoin }}</div>
+                    <div class="mobile-tx-meta"><span class="badge {{ tx.status|status_badge_class }}">{{ tx.status }}</span> &middot; {{ tx.created_at|time_ago }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="empty-state" style="padding:1.5rem 1rem;">
+            <p class="text-muted">No transfers yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Desktop table (hidden on small screens) -->
+    <div class="desktop-table">
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Counterparty</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in recent_transfers %}
+                    <tr>
+                        {% if tx.recipient == wallet %}
+                        <td><span class="text-success">&#8595; Received</span></td>
+                        <td>{% if tx.sender %}{% wallet_name tx.sender %}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>
+                        <td class="text-success">+{{ tx.amount|patcoin }} PAT</td>
+                        {% else %}
+                        <td><span class="text-danger">&#8593; Sent</span></td>
+                        <td>{% wallet_name tx.recipient %}</td>
+                        <td class="text-danger">-{{ tx.amount|patcoin }} PAT</td>
+                        {% endif %}
+                        <td><span class="badge {{ tx.status|status_badge_class }}">{{ tx.status }}</span></td>
+                        <td class="text-dim">{{ tx.created_at|time_ago }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted" style="padding:2rem;">No transfers yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% else %}

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load ledger_tags %}
 
 {% block title %}New Transfer &mdash; PatCoin{% endblock %}
 
@@ -26,7 +26,7 @@
             <select name="sender" id="id_sender" class="form-select" required>
                 <option value="">Select sender...</option>
                 {% for w in form.sender.field.queryset %}
-                <option value="{{ w.pk }}">{{ w.label }} ({{ w.balance|floatformat:2 }} PAT)</option>
+                <option value="{{ w.pk }}">{% wallet_name w %} ({{ w.balance|floatformat:2 }} PAT)</option>
                 {% endfor %}
             </select>
         </div>
@@ -35,7 +35,7 @@
             <select name="recipient" id="id_recipient" class="form-select" required>
                 <option value="">Select recipient...</option>
                 {% for w in form.recipient.field.queryset %}
-                <option value="{{ w.pk }}">{{ w.label }}</option>
+                <option value="{{ w.pk }}">{% wallet_name w %}</option>
                 {% endfor %}
             </select>
         </div>

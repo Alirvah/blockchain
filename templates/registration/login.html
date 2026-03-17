@@ -25,6 +25,9 @@
 
         <form method="post">
             {% csrf_token %}
+            {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
             <div class="form-group">
                 <label class="form-label" for="id_username">Username</label>
                 <input type="text" name="username" id="id_username" class="form-input" autofocus required>

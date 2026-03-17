@@ -42,16 +42,16 @@
     <div class="qr-panel">
         <div>
             <div id="walletReceiveQr" class="qr-canvas" data-address="{{ wallet.address }}"></div>
-            <div class="qr-caption">Scan to autofill this wallet address</div>
+            <div class="qr-caption">Scan or share this PatCoin URL to open a prefilled send form</div>
         </div>
         <div class="qr-meta">
-            <div class="form-label">PatCoin URI</div>
-            <div class="hash hash-full" id="walletReceiveUri">patcoin:{{ wallet.address }}</div>
+            <div class="form-label">PatCoin URL</div>
+            <div class="hash hash-full" id="walletReceiveUri">{{ receive_url }}</div>
             <div class="form-label mt-2">Wallet Address</div>
             <div class="hash hash-full">{{ wallet.address }}</div>
             <div class="btn-group mt-2">
                 <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('{{ wallet.address }}')">Copy Address</button>
-                <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('patcoin:{{ wallet.address }}')">Copy URI</button>
+                <button type="button" class="btn btn-secondary" onclick="copyPatcoinValue('{{ receive_url|escapejs }}')">Copy URL</button>
             </div>
         </div>
     </div>
@@ -171,9 +171,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const qrEl = document.getElementById('walletReceiveQr');
     if (!qrEl) return;
 
-    const address = qrEl.dataset.address;
+    const shareUrl = document.getElementById('walletReceiveUri').textContent.trim();
     new QRCode(qrEl, {
-        text: 'patcoin:' + address,
+        text: shareUrl,
         width: 180,
         height: 180,
         colorDark: '#e8eaf0',

@@ -654,7 +654,7 @@ class CustomerQrRenderTest(TestCase):
         response = self.client.get(reverse("dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Receive PatCoin")
-        self.assertContains(response, "patcoin:")
+        self.assertContains(response, reverse("patcoin_pay", args=[self.wallet.address]))
 
     def test_customer_send_shows_qr_scan_actions(self):
         response = self.client.get(reverse("customer_send"))
@@ -666,4 +666,24 @@ class CustomerQrRenderTest(TestCase):
         response = self.client.get(reverse("wallet_detail", args=[self.wallet.id]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Receive QR")
-        self.assertContains(response, "Copy URI")
+        self.assertContains(response, "Copy URL")
+
+    def test_pay_link_redirects_customer_to_prefilled_send_form(self):
+        response = self.client.get(reverse("patcoin_pay", args=[self.wallet.address]))
+        self.assertRedirects(
+            response,
+            f"{reverse('customer_send')}?to={self.wallet.address}",
+        )
+
+    def test_send_form_prefills_address_from_share_link(self):
+        response = self.client.get(f"{reverse('customer_send')}?to={self.wallet.address}")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'value="{self.wallet.address}"')
+
+    def test_share_link_redirects_to_login_with_next_when_logged_out(self):
+        logged_out = Client()
+        response = logged_out.get(reverse("patcoin_pay", args=[self.wallet.address]))
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('patcoin_pay', args=[self.wallet.address])}",
+        )

@@ -2,12 +2,13 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import REDIRECT_FIELD_NAME, get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import models, transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -44,8 +45,22 @@ def login_view(request):
     if request.method == "POST" and form.is_valid():
         login(request, form.get_user())
         ensure_background_validation()
+        redirect_to = request.POST.get(REDIRECT_FIELD_NAME) or request.GET.get(REDIRECT_FIELD_NAME)
+        if redirect_to and url_has_allowed_host_and_scheme(
+            redirect_to,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(redirect_to)
         return redirect("dashboard")
-    return render(request, "registration/login.html", {"form": form})
+    return render(
+        request,
+        "registration/login.html",
+        {
+            "form": form,
+            "next": request.GET.get(REDIRECT_FIELD_NAME, ""),
+        },
+    )
 
 
 def register_view(request):
@@ -77,6 +92,13 @@ def register_view(request):
 def invite_registration_url(request, invite):
     return request.build_absolute_uri(
         reverse("invite_register", kwargs={"token": invite.token})
+    )
+
+
+def patcoin_share_url(request, wallet_or_address):
+    address = wallet_or_address.address if hasattr(wallet_or_address, "address") else str(wallet_or_address)
+    return request.build_absolute_uri(
+        reverse("patcoin_pay", kwargs={"address": address})
     )
 
 
@@ -179,6 +201,7 @@ def customer_dashboard(request):
     return render(request, "ledger/customer_dashboard.html", {
         "wallet": wallet,
         "recent_transfers": recent_transfers,
+        "receive_url": patcoin_share_url(request, wallet) if wallet else "",
     })
 
 
@@ -221,6 +244,7 @@ def wallet_detail(request, wallet_id):
     return render(request, "ledger/wallet_detail.html", {
         "wallet": wallet,
         "transfers": transfers,
+        "receive_url": patcoin_share_url(request, wallet),
     })
 
 
@@ -421,7 +445,14 @@ def customer_send(request):
         messages.error(request, "You don't have a wallet yet.")
         return redirect("dashboard")
 
-    form = CustomerTransferForm(request.POST or None, sender_wallet=wallet)
+    prefill_address = request.GET.get("to", "").strip()
+    if request.method == "POST":
+        form = CustomerTransferForm(request.POST, sender_wallet=wallet)
+    else:
+        form = CustomerTransferForm(
+            initial={"recipient_address": prefill_address} if prefill_address else None,
+            sender_wallet=wallet,
+        )
     if request.method == "POST" and form.is_valid():
         recipient = form.cleaned_data["recipient_address"]
         with transaction.atomic():
@@ -435,7 +466,27 @@ def customer_send(request):
             )
         messages.success(request, f"Transfer of {form.cleaned_data['amount']:,.2f} PAT submitted.")
         return redirect("dashboard")
-    return render(request, "ledger/customer_send.html", {"form": form, "wallet": wallet})
+    return render(
+        request,
+        "ledger/customer_send.html",
+        {
+            "form": form,
+            "wallet": wallet,
+            "prefill_address": prefill_address,
+        },
+    )
+
+
+@login_required
+def patcoin_pay(request, address):
+    wallet = get_object_or_404(Wallet, address=address)
+    if request.user.is_staff:
+        messages.info(
+            request,
+            f"Share link opened for {wallet.address}. Use the admin transfer screen to send manually.",
+        )
+        return redirect("transfer_create")
+    return redirect(f"{reverse('customer_send')}?to={wallet.address}")
 
 
 # ---------------------------------------------------------------------------
@@ -601,11 +652,19 @@ def how_it_works(request):
     )
 
     # All confirmed transfers for the full ledger view
-    all_transfers = (
+    all_transfers = list(
         Transfer.objects.filter(status=Transfer.CONFIRMED)
         .select_related("sender", "recipient", "block")
         .order_by("created_at")
     )
+
+    ledger_preview_size = 3
+    if len(all_transfers) > ledger_preview_size * 2:
+        ledger_preview = all_transfers[:ledger_preview_size] + all_transfers[-ledger_preview_size:]
+        omitted_transfer_count = len(all_transfers) - len(ledger_preview)
+    else:
+        ledger_preview = all_transfers
+        omitted_transfer_count = 0
 
     return render(request, "ledger/how_it_works.html", {
         "total_supply": total_supply,
@@ -621,7 +680,8 @@ def how_it_works(request):
         "chain_errors": chain_validation["errors"],
         "anchor_report": anchor_report,
         "example_tx": example_tx,
-        "all_transfers": all_transfers,
+        "all_transfers": ledger_preview,
+        "omitted_transfer_count": omitted_transfer_count,
         "force_refresh": force_refresh,
     })
 

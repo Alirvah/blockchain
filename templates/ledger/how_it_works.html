@@ -359,6 +359,15 @@
                 </div>
             </div>
         </div>
+        {% if omitted_transfer_count and forloop.counter == 3 %}
+        <div class="edu-demo-box" style="margin-bottom:0.5rem; text-align:center;">
+            <div class="edu-demo-label">Middle of Ledger Omitted</div>
+            <p class="edu-text" style="padding:1rem;">
+                {{ omitted_transfer_count }} confirmed transfer{{ omitted_transfer_count|pluralize }} skipped here for readability.
+                The ledger continues in order and resumes with the most recent transfers below.
+            </p>
+        </div>
+        {% endif %}
         {% empty %}
         <div class="edu-demo-box">
             <div class="edu-demo-label">No confirmed transfers yet</div>

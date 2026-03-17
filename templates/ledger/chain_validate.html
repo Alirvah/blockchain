@@ -6,6 +6,7 @@
 <div class="page-header animate-in">
     <h2>Chain Validation</h2>
     <p class="subtitle">Verify hash integrity across all sealed blocks</p>
+    <a href="{% url 'chain_validate' %}?refresh=1" class="btn btn-secondary">Refresh Validation</a>
 </div>
 
 {% if is_valid %}

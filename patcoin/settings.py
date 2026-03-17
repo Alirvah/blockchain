@@ -91,6 +91,18 @@ STORAGES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "data" / "media"
 
+FILE_CACHE_DIR = BASE_DIR / "data" / "django_cache"
+FILE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": str(FILE_CACHE_DIR),
+        "TIMEOUT": None,
+        "OPTIONS": {"MAX_ENTRIES": 1000},
+    }
+}
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "/login/"

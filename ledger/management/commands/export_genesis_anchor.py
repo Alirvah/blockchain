@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 
 from ledger.genesis_anchor import export_genesis_anchor
+from ledger.health import invalidate_chain_health_cache
 
 
 class Command(BaseCommand):
@@ -25,3 +26,4 @@ class Command(BaseCommand):
             f"Genesis anchor written to {manifest_path}\n"
             f"Anchored hash: {manifest['block']['block_hash']}"
         ))
+        invalidate_chain_health_cache()

@@ -91,6 +91,9 @@
 <div class="section animate-in">
     <div class="section-header">
         <h3 class="section-title">Genesis Anchor</h3>
+        <a href="{% url 'explorer' %}?refresh=1" class="btn btn-secondary btn-sm">
+            {% if force_refresh %}Refreshing...{% else %}Refresh Verification{% endif %}
+        </a>
     </div>
     <div class="card">
         <div class="anchor-trust-header">

@@ -20,7 +20,13 @@ from .forms import (
     UserCreateForm,
     WalletCreateForm,
 )
-from .genesis_anchor import get_anchor_status_message, get_genesis_anchor_report
+from .genesis_anchor import get_anchor_status_message
+from .health import (
+    ensure_background_validation,
+    get_cached_anchor_report,
+    get_cached_chain_validation,
+    invalidate_chain_health_cache,
+)
 from .models import Block, InviteLink, Transfer, Wallet
 
 User = get_user_model()
@@ -37,6 +43,7 @@ def login_view(request):
     form = AuthenticationForm(request, data=request.POST or None)
     if request.method == "POST" and form.is_valid():
         login(request, form.get_user())
+        ensure_background_validation()
         return redirect("dashboard")
     return render(request, "registration/login.html", {"form": form})
 
@@ -60,6 +67,7 @@ def register_view(request):
                 owner=user,
             )
         login(request, user)
+        ensure_background_validation()
         messages.success(request, "Welcome to PatCoin! Your wallet has been created.")
         return redirect("dashboard")
 
@@ -341,7 +349,9 @@ def invite_register(request, token):
         except ValueError as exc:
             form.add_error(None, str(exc))
         else:
+            transaction.on_commit(invalidate_chain_health_cache)
             login(request, user)
+            ensure_background_validation()
             messages.success(
                 request,
                 f"Welcome to PatCoin. Your wallet was funded with {invite.bonus_amount:,.2f} PAT.",
@@ -482,6 +492,7 @@ def seal_block(request):
 
         pending.update(block=block)
         block.seal(user=request.user)
+        transaction.on_commit(invalidate_chain_health_cache)
 
     messages.success(
         request,
@@ -497,6 +508,7 @@ def seal_block(request):
 
 @login_required
 def explorer(request):
+    force_refresh = request.GET.get("refresh") == "1"
     total_supply = Decimal(str(settings.PATCOIN_TOTAL_SUPPLY))
     treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
     treasury_balance = treasury.balance if treasury else Decimal("0")
@@ -512,8 +524,8 @@ def explorer(request):
     active_wallets = Wallet.objects.filter(wallet_type=Wallet.CUSTOMER).count()
     pending_count = Transfer.objects.filter(status=Transfer.PENDING).count()
 
-    is_valid, chain_errors = Block.validate_chain()
-    anchor_report = get_genesis_anchor_report()
+    chain_validation = get_cached_chain_validation(force_refresh=force_refresh)
+    anchor_report = get_cached_anchor_report(force_refresh=force_refresh)
 
     return render(request, "ledger/explorer.html", {
         "total_supply": total_supply,
@@ -524,10 +536,11 @@ def explorer(request):
         "recent_transfers": recent_transfers,
         "active_wallets": active_wallets,
         "pending_count": pending_count,
-        "chain_valid": is_valid,
-        "chain_errors": chain_errors,
+        "chain_valid": chain_validation["is_valid"],
+        "chain_errors": chain_validation["errors"],
         "anchor_report": anchor_report,
         "anchor_status_message": get_anchor_status_message(anchor_report),
+        "force_refresh": force_refresh,
     })
 
 
@@ -538,6 +551,7 @@ def explorer(request):
 @login_required
 def how_it_works(request):
     """Educational view explaining the blockchain with real data."""
+    force_refresh = request.GET.get("refresh") == "1"
     total_supply = Decimal(str(settings.PATCOIN_TOTAL_SUPPLY))
     treasury = Wallet.objects.filter(wallet_type=Wallet.TREASURY).first()
 
@@ -572,10 +586,10 @@ def how_it_works(request):
             link_pair = (chain[i - 1], chain[i])
 
     # Chain validation — live
-    is_valid, chain_errors = Block.validate_chain()
+    chain_validation = get_cached_chain_validation(force_refresh=force_refresh)
 
     # Anchor data — live
-    anchor_report = get_genesis_anchor_report()
+    anchor_report = get_cached_anchor_report(force_refresh=force_refresh)
 
     # A recent confirmed transfer to use as example
     example_tx = (
@@ -603,11 +617,12 @@ def how_it_works(request):
         "sample_block": sample_block,
         "sample_transfers": sample_transfers,
         "link_pair": link_pair,
-        "chain_valid": is_valid,
-        "chain_errors": chain_errors,
+        "chain_valid": chain_validation["is_valid"],
+        "chain_errors": chain_validation["errors"],
         "anchor_report": anchor_report,
         "example_tx": example_tx,
         "all_transfers": all_transfers,
+        "force_refresh": force_refresh,
     })
 
 
@@ -617,16 +632,16 @@ def how_it_works(request):
 
 @login_required
 def chain_validate(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
-    is_valid, errors = Block.validate_chain()
+    force_refresh = request.GET.get("refresh") == "1"
+    chain_validation = get_cached_chain_validation(force_refresh=force_refresh)
     blocks = Block.objects.filter(
         status__in=[Block.SEALED, Block.GENESIS]
     ).order_by("index")
     return render(request, "ledger/chain_validate.html", {
-        "is_valid": is_valid,
-        "errors": errors,
+        "is_valid": chain_validation["is_valid"],
+        "errors": chain_validation["errors"],
         "blocks": blocks,
+        "force_refresh": force_refresh,
     })
 
 
@@ -636,6 +651,7 @@ def chain_validate(request):
 
 @login_required
 def provenance(request, wallet_id):
+    force_refresh = request.GET.get("refresh") == "1"
     wallet = get_object_or_404(Wallet, id=wallet_id)
 
     # Any logged-in user can view provenance (it's a transparency/verification page)
@@ -670,10 +686,10 @@ def provenance(request, wallet_id):
     reaches_genesis = any(tx.sender is None for tx in lineage)
 
     # Chain validation
-    chain_valid, chain_errors = Block.validate_chain()
+    chain_validation = get_cached_chain_validation(force_refresh=force_refresh)
 
     # Anchor verification
-    anchor_report = get_genesis_anchor_report()
+    anchor_report = get_cached_anchor_report(force_refresh=force_refresh)
 
     # Collect the unique blocks that carry this wallet's lineage
     lineage_block_ids = {tx.block_id for tx in lineage if tx.block_id}
@@ -696,8 +712,12 @@ def provenance(request, wallet_id):
     })
     checks.append({
         "label": "Chain hashes are valid",
-        "ok": chain_valid,
-        "detail": "All block hashes verified" if chain_valid else f"{len(chain_errors)} error(s) found",
+        "ok": chain_validation["is_valid"],
+        "detail": (
+            "All block hashes verified"
+            if chain_validation["is_valid"]
+            else f"{len(chain_validation['errors'])} error(s) found"
+        ),
     })
     checks.append({
         "label": "Genesis anchored to file",
@@ -736,13 +756,14 @@ def provenance(request, wallet_id):
         "genesis_block": genesis_block,
         "treasury": treasury,
         "reaches_genesis": reaches_genesis,
-        "chain_valid": chain_valid,
+        "chain_valid": chain_validation["is_valid"],
         "anchor_report": anchor_report,
         "anchor_status_message": get_anchor_status_message(anchor_report),
         "lineage_blocks": lineage_blocks,
         "all_transfers": all_transfers,
         "checks": checks,
         "all_checks_pass": all_ok,
+        "force_refresh": force_refresh,
     })
 
 

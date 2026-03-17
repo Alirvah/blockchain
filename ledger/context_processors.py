@@ -1,5 +1,9 @@
-from .genesis_anchor import get_genesis_anchor_report
-from .models import Block
+from .health import (
+    ensure_background_validation,
+    get_cached_layout_chain_status,
+    get_last_validation_completed_at,
+    is_background_validation_running,
+)
 
 
 def chain_status(request):
@@ -7,24 +11,16 @@ def chain_status(request):
     if not hasattr(request, "user") or not request.user.is_authenticated:
         return {}
 
-    is_valid, chain_errors = Block.validate_chain()
-    anchor_report = get_genesis_anchor_report()
-    anchor_ok = anchor_report["status"] == "valid"
-    anchor_local = anchor_report["status"] in ("remote_unverified", "git_unavailable")
+    status = get_cached_layout_chain_status(
+        force_refresh=request.GET.get("refresh") == "1"
+    )
+    if request.GET.get("refresh") != "1" and status["anchor_status"] == "unchecked":
+        ensure_background_validation()
 
-    # Overall health: green only when both chain AND anchor are fully verified
-    if is_valid and anchor_ok:
-        health = "ok"
-    elif is_valid and anchor_local:
-        health = "local"
-    elif not is_valid:
-        health = "broken"
-    else:
-        health = "warning"
+    status = dict(status)
+    if status["anchor_status"] == "unchecked" and is_background_validation_running():
+        status["anchor_status"] = "validating"
 
-    return {
-        "chain_health": health,
-        "chain_is_valid": is_valid,
-        "chain_error_count": len(chain_errors),
-        "anchor_status": anchor_report["status"],
-    }
+    status["background_validation_running"] = is_background_validation_running()
+    status["last_validation_completed_at"] = get_last_validation_completed_at()
+    return status

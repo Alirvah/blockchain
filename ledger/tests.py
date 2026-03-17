@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -20,6 +21,14 @@ from .genesis_anchor import (
     get_git_anchor_metadata,
     get_anchor_manifest_path,
     get_genesis_anchor_report,
+)
+from .context_processors import chain_status
+from .health import (
+    ensure_background_validation,
+    get_cached_anchor_report,
+    get_cached_layout_chain_status,
+    invalidate_chain_health_cache,
+    is_background_validation_running,
 )
 from .models import Block, InviteLink, Transfer, Wallet
 
@@ -169,6 +178,14 @@ class AuthorizationTest(TestCase):
         client.login(username="user1", password="test")
 
         response = client.get(reverse("provenance", args=[self.wallet2.id]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_customer_can_view_chain_validate(self):
+        """Any logged-in user can open chain validation."""
+        client = Client()
+        client.login(username="user1", password="test")
+
+        response = client.get(reverse("chain_validate"))
         self.assertEqual(response.status_code, 200)
 
     def test_customer_cannot_access_admin_pages(self):
@@ -458,7 +475,7 @@ class ViewRenderTest(TestCase):
         response = self.client.get(reverse("dashboard"))
         self.assertEqual(response.status_code, 200)
 
-    @mock.patch("ledger.views.get_genesis_anchor_report")
+    @mock.patch("ledger.views.get_cached_anchor_report")
     @mock.patch("ledger.views.get_anchor_status_message")
     def test_explorer_renders(self, message_mock, report_mock):
         report_mock.return_value = {
@@ -500,7 +517,7 @@ class ViewRenderTest(TestCase):
         response = self.client.get(reverse("pending_queue"))
         self.assertEqual(response.status_code, 200)
 
-    @mock.patch("ledger.views.get_genesis_anchor_report")
+    @mock.patch("ledger.views.get_cached_anchor_report")
     @mock.patch("ledger.views.get_anchor_status_message")
     def test_provenance_renders(self, message_mock, report_mock):
         report_mock.return_value = {
@@ -526,6 +543,99 @@ class ViewRenderTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Verify My PatCoin")
         self.assertContains(response, "Mismatch")
+
+
+class HealthCacheTest(TestCase):
+    def setUp(self):
+        invalidate_chain_health_cache()
+
+    def tearDown(self):
+        invalidate_chain_health_cache()
+
+    @mock.patch("ledger.health.get_genesis_anchor_report")
+    def test_anchor_report_is_cached_until_invalidated(self, report_mock):
+        report_mock.side_effect = [
+            {"status": STATUS_REMOTE_UNVERIFIED},
+            {"status": STATUS_VALID},
+        ]
+
+        first = get_cached_anchor_report()
+        second = get_cached_anchor_report()
+        self.assertEqual(first["status"], STATUS_REMOTE_UNVERIFIED)
+        self.assertEqual(second["status"], STATUS_REMOTE_UNVERIFIED)
+        self.assertEqual(report_mock.call_count, 1)
+
+        invalidate_chain_health_cache()
+        refreshed = get_cached_anchor_report()
+        self.assertEqual(refreshed["status"], STATUS_VALID)
+        self.assertEqual(report_mock.call_count, 2)
+
+    @mock.patch("ledger.health.Block.validate_chain")
+    @mock.patch("ledger.health.get_genesis_anchor_report")
+    def test_layout_status_uses_cached_chain_and_anchor_results(self, report_mock, validate_mock):
+        validate_mock.return_value = (True, [])
+        report_mock.return_value = {"status": STATUS_REMOTE_UNVERIFIED}
+
+        get_cached_anchor_report()
+
+        first = get_cached_layout_chain_status()
+        second = get_cached_layout_chain_status()
+
+        self.assertEqual(first["chain_health"], "local")
+        self.assertEqual(second["chain_health"], "local")
+        self.assertEqual(validate_mock.call_count, 1)
+        self.assertEqual(report_mock.call_count, 1)
+
+    @mock.patch("ledger.health.Block.validate_chain")
+    @mock.patch("ledger.health.get_genesis_anchor_report")
+    def test_layout_status_skips_remote_anchor_fetch_on_cold_cache(self, report_mock, validate_mock):
+        validate_mock.return_value = (True, [])
+
+        status = get_cached_layout_chain_status()
+
+        self.assertEqual(status["chain_health"], "local")
+        self.assertEqual(status["anchor_status"], "unchecked")
+        report_mock.assert_not_called()
+
+    @mock.patch("ledger.health.threading.Thread")
+    def test_background_validation_starts_only_once(self, thread_mock):
+        thread_instance = mock.Mock()
+        thread_mock.return_value = thread_instance
+
+        started = ensure_background_validation()
+        duplicate = ensure_background_validation()
+
+        self.assertTrue(started)
+        self.assertFalse(duplicate)
+        thread_mock.assert_called_once()
+        thread_instance.start.assert_called_once()
+        self.assertTrue(is_background_validation_running())
+
+    @mock.patch("ledger.context_processors.is_background_validation_running", return_value=True)
+    @mock.patch("ledger.context_processors.ensure_background_validation")
+    @mock.patch("ledger.context_processors.get_cached_layout_chain_status")
+    def test_context_processor_marks_validation_running(
+        self,
+        status_mock,
+        ensure_mock,
+        running_mock,
+    ):
+        status_mock.return_value = {
+            "chain_health": "local",
+            "chain_is_valid": True,
+            "chain_error_count": 0,
+            "anchor_status": "unchecked",
+        }
+        request = SimpleNamespace(
+            user=SimpleNamespace(is_authenticated=True),
+            GET={},
+        )
+
+        result = chain_status(request)
+
+        ensure_mock.assert_called_once()
+        self.assertEqual(result["anchor_status"], "validating")
+        self.assertTrue(result["background_validation_running"])
 
 
 class CustomerQrRenderTest(TestCase):

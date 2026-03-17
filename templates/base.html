@@ -82,11 +82,9 @@
                 <a href="{% url 'how_it_works' %}" class="nav-link {% if request.resolver_match.url_name == 'how_it_works' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#9881;</span> How It Works
                 </a>
-                {% if user.is_staff %}
                 <a href="{% url 'chain_validate' %}" class="nav-link {% if request.resolver_match.url_name == 'chain_validate' %}active{% endif %}" onclick="closeSidebarMobile()">
                     <span class="nav-icon">&#10003;</span> Validate Chain
                 </a>
-                {% endif %}
             </div>
         </nav>
 
@@ -95,6 +93,7 @@
             <span class="chain-status-dot"></span>
             <span class="chain-status-text">
                 {% if chain_health == "ok" %}Chain Verified
+                {% elif anchor_status == "validating" %}Validation Running
                 {% elif chain_health == "local" %}Chain Valid &middot; Local Only
                 {% elif chain_health == "warning" %}Anchor Issue
                 {% else %}Chain Integrity Issue

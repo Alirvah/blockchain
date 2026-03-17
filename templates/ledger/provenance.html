@@ -14,6 +14,7 @@
     <button class="btn btn-secondary btn-copy-link" onclick="copyPageLink(this)" title="Copy shareable link">
         <span class="copy-icon">&#128279;</span> <span class="copy-text">Share Link</span>
     </button>
+    <a href="{% url 'provenance' wallet.id %}?refresh=1" class="btn btn-secondary">Refresh Verification</a>
 </div>
 
 <!-- ============================================================

@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from ledger.health import invalidate_chain_health_cache
 from ledger.models import Block, Transfer, Wallet
 
 
@@ -73,3 +74,4 @@ class Command(BaseCommand):
                 f"Minted: {total_supply:,.2f} PatCoin"
             )
         )
+        invalidate_chain_health_cache()

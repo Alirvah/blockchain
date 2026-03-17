@@ -592,6 +592,17 @@ class InviteFlowTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Invite treasury shortfall detected")
 
+    def test_invite_list_shows_copy_and_qr_actions(self):
+        self.client.login(username="admin", password="admin")
+        invite = InviteLink.objects.create(created_by=self.admin, bonus_amount=Decimal("10.00"))
+
+        response = self.client.get(reverse("invite_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Copy Link")
+        self.assertContains(response, "Show QR")
+        self.assertContains(response, reverse("invite_register", args=[invite.token]))
+
 
 class ViewRenderTest(TestCase):
     def setUp(self):

@@ -76,7 +76,22 @@
                 <td>{{ row.invite.note|default:"—" }}</td>
                 <td class="text-accent">{{ row.invite.bonus_amount|patcoin }} PAT</td>
                 <td>
-                    <a href="{{ row.registration_url }}" class="text-mono" style="font-size:0.8rem; word-break:break-all;">{{ row.registration_url }}</a>
+                    <div class="btn-group" style="gap:0.5rem; flex-wrap:wrap;">
+                        <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            onclick="copyInviteLink('{{ row.registration_url|escapejs }}')"
+                        >
+                            Copy Link
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            onclick="toggleInviteQr('{{ row.invite.id }}', '{{ row.registration_url|escapejs }}')"
+                        >
+                            Show QR
+                        </button>
+                    </div>
                 </td>
                 <td class="text-dim">{{ row.invite.created_at|time_ago }}</td>
                 <td>
@@ -87,10 +102,81 @@
                     {% endif %}
                 </td>
             </tr>
+            <tr id="inviteQrRow-{{ row.invite.id }}" style="display:none;">
+                <td colspan="6" style="padding:1rem;">
+                    <div class="card" style="margin:0;">
+                        <div class="qr-panel">
+                            <div>
+                                <div id="inviteQr-{{ row.invite.id }}" class="qr-canvas"></div>
+                                <div class="qr-caption">Scan to open this invite registration link</div>
+                            </div>
+                            <div class="qr-meta">
+                                <div class="form-label">Registration Link</div>
+                                <div class="hash hash-full" id="inviteQrUrl-{{ row.invite.id }}">{{ row.registration_url }}</div>
+                                <div class="btn-group mt-2">
+                                    <button
+                                        type="button"
+                                        class="btn btn-secondary btn-sm"
+                                        onclick="copyInviteLink('{{ row.registration_url|escapejs }}')"
+                                    >
+                                        Copy Link
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-secondary btn-sm"
+                                        onclick="toggleInviteQr('{{ row.invite.id }}', '{{ row.registration_url|escapejs }}')"
+                                    >
+                                        Hide QR
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
             {% empty %}
             <tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">No invite links yet.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+function copyInviteLink(value) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value);
+    } else {
+        const temp = document.createElement('textarea');
+        temp.value = value;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+    }
+}
+
+function toggleInviteQr(inviteId, inviteUrl) {
+    const row = document.getElementById('inviteQrRow-' + inviteId);
+    const qrEl = document.getElementById('inviteQr-' + inviteId);
+    if (!row || !qrEl) return;
+
+    const isOpen = row.style.display !== 'none';
+    row.style.display = isOpen ? 'none' : 'table-row';
+
+    if (!isOpen && !qrEl.dataset.rendered) {
+        new QRCode(qrEl, {
+            text: inviteUrl,
+            width: 180,
+            height: 180,
+            colorDark: '#e8eaf0',
+            colorLight: '#1c1f2e',
+            correctLevel: QRCode.CorrectLevel.M,
+        });
+        qrEl.dataset.rendered = '1';
+    }
+}
+</script>
 {% endblock %}

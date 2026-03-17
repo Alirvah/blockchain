@@ -7,12 +7,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import models, transaction
 from django.http import JsonResponse
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from .decorators import rate_limit, staff_required
 from .forms import (
     CustomerTransferForm,
     InviteCreateForm,
@@ -30,6 +32,7 @@ from .health import (
 )
 from .models import Block, InviteLink, Transfer, Wallet
 from .sealing import seal_pending_transfers
+from .services import create_transfer
 
 User = get_user_model()
 INVITE_BONUS_AMOUNT = Decimal("10.00")
@@ -39,6 +42,7 @@ INVITE_BONUS_AMOUNT = Decimal("10.00")
 # Auth
 # ---------------------------------------------------------------------------
 
+@rate_limit("login", max_requests=10, period_seconds=3600)
 def login_view(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
@@ -64,6 +68,7 @@ def login_view(request):
     )
 
 
+@rate_limit("register", max_requests=5, period_seconds=3600)
 def register_view(request):
     """Public self-registration — no invite required."""
     if request.user.is_authenticated:
@@ -202,18 +207,14 @@ def customer_dashboard(request):
 # Admin: Wallet management
 # ---------------------------------------------------------------------------
 
-@login_required
+@staff_required
 def wallet_list(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
     wallets = Wallet.objects.select_related("owner").all()
     return render(request, "ledger/wallet_list.html", {"wallets": wallets})
 
 
-@login_required
+@staff_required
 def wallet_create(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
     form = WalletCreateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         wallet = form.save()
@@ -228,7 +229,7 @@ def wallet_detail(request, wallet_id):
 
     # Customers can only view their own wallet
     if not request.user.is_staff and wallet.owner != request.user:
-        return redirect("dashboard")
+        raise PermissionDenied
 
     transfers = Transfer.objects.filter(
         models.Q(sender=wallet) | models.Q(recipient=wallet)
@@ -245,18 +246,14 @@ def wallet_detail(request, wallet_id):
 # Admin: User management
 # ---------------------------------------------------------------------------
 
-@login_required
+@staff_required
 def user_list(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
     users = User.objects.prefetch_related("wallets").all()
     return render(request, "ledger/user_list.html", {"users": users})
 
 
-@login_required
+@staff_required
 def user_create(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
     form = UserCreateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user, wallet = form.save()
@@ -272,10 +269,8 @@ def user_create(request):
 # Admin: Invite management
 # ---------------------------------------------------------------------------
 
-@login_required
+@staff_required
 def invite_list(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
 
     invites = InviteLink.objects.select_related("created_by", "used_by").all()
     invite_rows = [
@@ -295,10 +290,8 @@ def invite_list(request):
     )
 
 
-@login_required
+@staff_required
 def invite_create(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
 
     invite_funding = get_invite_funding_status()
     form = InviteCreateForm(request.POST or None)
@@ -327,6 +320,7 @@ def invite_create(request):
     )
 
 
+@rate_limit("invite_register", max_requests=5, period_seconds=3600)
 def invite_register(request, token):
     if request.user.is_authenticated:
         return redirect("dashboard")
@@ -390,10 +384,8 @@ def invite_register(request, token):
 # Admin: Transfers
 # ---------------------------------------------------------------------------
 
-@login_required
+@staff_required
 def transfer_list(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
     status_filter = request.GET.get("status", "")
     transfers = Transfer.objects.select_related("sender", "recipient", "block")
     if status_filter:
@@ -404,23 +396,23 @@ def transfer_list(request):
     })
 
 
-@login_required
+@staff_required
 def transfer_create(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
     form = TransferForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        with transaction.atomic():
-            transfer = Transfer.objects.create(
+        try:
+            transfer = create_transfer(
                 sender=form.cleaned_data["sender"],
                 recipient=form.cleaned_data["recipient"],
                 amount=form.cleaned_data["amount"],
                 memo=form.cleaned_data.get("memo", ""),
-                status=Transfer.PENDING,
                 created_by=request.user,
             )
-        messages.success(request, f"Transfer of {transfer.amount:,.2f} PAT created (pending).")
-        return redirect("transfer_list")
+        except ValueError as exc:
+            form.add_error(None, str(exc))
+        else:
+            messages.success(request, f"Transfer of {transfer.amount:,.2f} PAT created (pending).")
+            return redirect("transfer_list")
     return render(request, "ledger/transfer_create.html", {"form": form})
 
 
@@ -446,18 +438,19 @@ def customer_send(request):
             sender_wallet=wallet,
         )
     if request.method == "POST" and form.is_valid():
-        recipient = form.cleaned_data["recipient_address"]
-        with transaction.atomic():
-            Transfer.objects.create(
+        try:
+            create_transfer(
                 sender=wallet,
-                recipient=recipient,
+                recipient=form.cleaned_data["recipient_address"],
                 amount=form.cleaned_data["amount"],
                 memo=form.cleaned_data.get("memo", ""),
-                status=Transfer.PENDING,
                 created_by=request.user,
             )
-        messages.success(request, f"Transfer of {form.cleaned_data['amount']:,.2f} PAT submitted.")
-        return redirect("dashboard")
+        except ValueError as exc:
+            form.add_error(None, str(exc))
+        else:
+            messages.success(request, f"Transfer of {form.cleaned_data['amount']:,.2f} PAT submitted.")
+            return redirect("dashboard")
     return render(
         request,
         "ledger/customer_send.html",
@@ -497,26 +490,22 @@ def block_list(request):
 def block_detail(request, block_id):
     block = get_object_or_404(Block.objects.select_related("sealed_by"), id=block_id)
     if not request.user.is_staff and block.status == Block.PENDING:
-        return redirect("block_list")
+        raise PermissionDenied
     transfers = block.transfers.select_related("sender", "recipient").order_by("created_at")
     return render(request, "ledger/block_detail.html", {"blk": block, "transfers": transfers})
 
 
-@login_required
+@staff_required
 def pending_queue(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
     pending = Transfer.objects.filter(status=Transfer.PENDING).select_related(
         "sender", "recipient"
     )
     return render(request, "ledger/pending_queue.html", {"pending_transfers": pending})
 
 
-@login_required
+@staff_required
 @require_POST
 def seal_block(request):
-    if not request.user.is_staff:
-        return redirect("dashboard")
 
     result = seal_pending_transfers(user=request.user)
     if result.status == "empty":

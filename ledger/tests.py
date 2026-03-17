@@ -281,7 +281,7 @@ class AuthorizationTest(TestCase):
         client.login(username="user1", password="test")
 
         response = client.get(reverse("wallet_detail", args=[self.wallet2.id]))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
 
     def test_customer_can_view_other_provenance(self):
         """Any logged-in user can view provenance (transparency)."""
@@ -319,7 +319,7 @@ class AuthorizationTest(TestCase):
         for url_name in ["wallet_list", "user_list", "transfer_list", "pending_queue"]:
             response = client.get(reverse(url_name))
             self.assertEqual(
-                response.status_code, 302, f"Customer should be redirected from {url_name}"
+                response.status_code, 403, f"Customer should get 403 from {url_name}"
             )
 
 

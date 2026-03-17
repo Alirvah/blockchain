@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from django import forms
 from django.contrib.auth.models import User
-
 from .models import Transfer, Wallet
 
 
@@ -48,16 +47,9 @@ class TransferForm(forms.Form):
         cleaned = super().clean()
         sender = cleaned.get("sender")
         recipient = cleaned.get("recipient")
-        amount = cleaned.get("amount")
 
         if sender and recipient and sender == recipient:
             raise forms.ValidationError("Sender and recipient must be different.")
-
-        if sender and amount:
-            if sender.balance < amount:
-                raise forms.ValidationError(
-                    f"Insufficient balance. {sender.label} has {sender.balance:,.2f} PAT."
-                )
 
         return cleaned
 
@@ -94,17 +86,10 @@ class CustomerTransferForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        amount = cleaned.get("amount")
         recipient = cleaned.get("recipient_address")
 
         if self.sender_wallet and recipient and self.sender_wallet == recipient:
             raise forms.ValidationError("Cannot send to your own wallet.")
-
-        if self.sender_wallet and amount:
-            if self.sender_wallet.balance < amount:
-                raise forms.ValidationError(
-                    f"Insufficient balance. You have {self.sender_wallet.balance:,.2f} PAT."
-                )
 
         return cleaned
 

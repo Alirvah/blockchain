@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f1117">
+    <title>Access Denied &mdash; PatCoin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<div class="login-page">
+    <div class="login-card animate-in">
+        <div class="login-brand">
+            <div class="logo-lg">P</div>
+            <h1>Access Denied</h1>
+            <p>You do not have permission to view this page.</p>
+        </div>
+        <div class="btn-group" style="justify-content:center; margin-top:1rem;">
+            <a href="/" class="btn btn-primary">Go to Dashboard</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

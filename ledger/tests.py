@@ -602,6 +602,7 @@ class InviteFlowTest(TestCase):
         self.assertContains(response, "Copy Link")
         self.assertContains(response, "Show QR")
         self.assertContains(response, reverse("invite_register", args=[invite.token]))
+        self.assertContains(response, "mobile-invite-list")
 
 
 class ViewRenderTest(TestCase):

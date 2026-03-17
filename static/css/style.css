@@ -1801,12 +1801,201 @@ code, .mono { font-family: var(--font-mono); font-size: 0.875em; }
     justify-content: flex-end;
 }
 
+/* --- Mobile Invite Cards --- */
+.mobile-invite-list {
+    display: none;
+}
+
+.mobile-invite-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 0.9rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.mobile-invite-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.mobile-invite-primary {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.mobile-invite-note {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.25;
+    word-break: break-word;
+}
+
+.mobile-invite-meta {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.mobile-invite-bonus {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--color-accent-light);
+}
+
+.mobile-invite-details {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 0.9rem;
+}
+
+.mobile-invite-detail {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: baseline;
+    font-size: 0.8rem;
+    color: var(--color-text-dim);
+}
+
+.mobile-invite-label {
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.invite-actions .btn {
+    flex: 1;
+    justify-content: center;
+}
+
+.invite-actions.mt-2 {
+    margin-top: 0.6rem;
+}
+
+.mobile-invite-qr {
+    margin-top: 0.9rem;
+}
+
+.mobile-invite-qr[hidden] {
+    display: none !important;
+}
+
+.mobile-invite-qr-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+}
+
+.mobile-invite-qr-inner .qr-canvas {
+    margin: 0 auto;
+}
+
+.mobile-invite-url {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--color-text-dim);
+    word-break: break-all;
+    text-align: center;
+    margin-top: 0.5rem;
+    max-width: 100%;
+    line-height: 1.4;
+}
+
+/* Page header row — wraps on mobile */
+.page-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
 /* Desktop/Mobile visibility toggles */
 .desktop-table { display: block; }
 
 @media (max-width: 768px) {
     .mobile-tx-list { display: block; }
+    .mobile-invite-list { display: block; }
     .desktop-table { display: none; }
+    .mobile-invite-card {
+        padding: 0.75rem;
+        margin-bottom: 0.6rem;
+    }
+    .mobile-invite-header {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .mobile-invite-primary {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+        min-width: 0;
+    }
+    .mobile-invite-note {
+        font-size: 0.82rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .mobile-invite-meta {
+        font-size: 0.68rem;
+        flex-shrink: 0;
+    }
+    .mobile-invite-bonus {
+        font-size: 0.82rem;
+    }
+    .mobile-invite-details {
+        margin-top: 0.5rem;
+        gap: 0.3rem;
+    }
+    .mobile-invite-detail {
+        font-size: 0.75rem;
+    }
+    .invite-actions {
+        flex-direction: row;
+        gap: 0.5rem;
+    }
+    .invite-actions .btn {
+        flex: 1;
+        min-height: 38px;
+        font-size: 0.78rem;
+        padding: 0.4rem 0.5rem;
+    }
+    .mobile-invite-qr-inner {
+        padding: 0.75rem;
+    }
+    .page-header-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    .page-header-row .btn {
+        text-align: center;
+        justify-content: center;
+    }
+    .stats-grid .stat-card {
+        padding: 0.65rem;
+    }
+    .stats-grid .stat-card .stat-value {
+        font-size: 1.1rem;
+    }
+    .stats-grid .stat-card .stat-sub {
+        font-size: 0.65rem;
+    }
 }
 
 /* --- Animations --- */

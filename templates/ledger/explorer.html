@@ -179,6 +179,65 @@
             </div>
         </div>
 
+        {% with btc=anchor_report.bitcoin_proof %}
+        <div class="anchor-detail-grid mt-2">
+            <div>
+                <div class="form-label">Bitcoin Timestamp Proof</div>
+                <div class="text-dim">
+                    {% if btc.status == "verified" %}
+                        <span class="badge badge-confirmed">Verified</span>
+                        Bitcoin-backed proof verified for this manifest
+                    {% elif btc.status == "recorded" %}
+                        <span class="badge badge-sealed">Transaction Recorded</span>
+                        Bitcoin transaction metadata has been recorded
+                    {% elif btc.status == "proof_file_present" %}
+                        <span class="badge badge-pending">Proof File Present</span>
+                        OpenTimestamps proof file detected for the manifest
+                    {% elif btc.status == "invalid" %}
+                        <span class="badge badge-failed">Invalid Proof</span>
+                        Proof metadata could not be parsed
+                    {% else %}
+                        <span class="badge badge-default">Not Added</span>
+                        No Bitcoin-backed proof recorded yet
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="form-label">Timestamp Subject</div>
+                <div class="hash hash-full">
+                    {% if btc.subject and btc.subject.manifest_sha256 %}{{ btc.subject.manifest_sha256 }}{% else %}—{% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if btc.ots_exists or btc.proof_exists or btc.anchor.txid %}
+        <div class="anchor-detail-grid mt-2">
+            <div>
+                <div class="form-label">Proof Artifact</div>
+                <div class="text-mono text-dim" style="word-break:break-all;">
+                    {% if btc.ots_exists %}{{ btc.ots_path }}{% elif btc.anchor and btc.anchor.opentimestamps and btc.anchor.opentimestamps.ots_path %}{{ btc.anchor.opentimestamps.ots_path }}{% elif btc.proof_exists %}{{ btc.proof_path }}{% else %}—{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="form-label">Bitcoin TXID</div>
+                <div class="text-mono text-dim" style="word-break:break-all;">
+                    {% if btc.anchor and btc.anchor.txid %}{{ btc.anchor.txid }}{% else %}—{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if btc.anchor and btc.anchor.explorer_url %}
+        <div class="mt-2">
+            <a href="{{ btc.anchor.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                View Bitcoin transaction &#8599;
+            </a>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% include "ledger/_anchor_downloads.html" %}
+
         {% if anchor_report.git.remote_url %}
         <div class="mt-2">
             <div class="form-label">Remote URL</div>

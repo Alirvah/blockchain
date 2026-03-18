@@ -46,6 +46,7 @@ urlpatterns = [
 
     # Provenance
     path("provenance/<uuid:wallet_id>/", views.provenance, name="provenance"),
+    path("anchor/download/<str:artifact>/", views.download_anchor_artifact, name="download_anchor_artifact"),
 
     # API
     path("api/supply/", views.api_supply_data, name="api_supply"),

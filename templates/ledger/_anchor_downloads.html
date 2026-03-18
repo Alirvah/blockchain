@@ -1,0 +1,63 @@
+{% with manifest=anchor_report.files.manifest ots=anchor_report.files.ots %}
+<div class="anchor-proof-link mt-2">
+    <div class="form-label">Download and verify yourself</div>
+    <a href="{% url 'download_anchor_artifact' 'manifest' %}" class="btn btn-secondary">Download genesis.json</a>
+    {% if ots.exists %}
+    <a href="{% url 'download_anchor_artifact' 'ots' %}" class="btn btn-secondary">Download genesis.json.ots</a>
+    {% endif %}
+    {% if manifest.raw_url %}
+    <a href="{{ manifest.raw_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Download genesis.json from Git &#8599;</a>
+    {% endif %}
+    {% if ots.raw_url %}
+    <a href="{{ ots.raw_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Download genesis.json.ots from Git &#8599;</a>
+    {% endif %}
+</div>
+
+<div class="anchor-detail-grid mt-2">
+    <div>
+        <div class="form-label">Manifest in Git</div>
+        <div class="text-dim">
+            {% if manifest.matches_git %}
+                <span class="badge badge-confirmed">Matches Git</span>
+                The local <span class="text-mono">anchors/genesis.json</span> file is byte-for-byte the same as the committed Git copy.
+            {% elif manifest.committed %}
+                <span class="badge badge-failed">Differs from Git</span>
+                The local <span class="text-mono">anchors/genesis.json</span> file does not match the committed Git copy.
+            {% else %}
+                <span class="badge badge-default">Not in Git</span>
+                The manifest file is not yet committed to Git.
+            {% endif %}
+        </div>
+        {% if manifest.view_url %}
+        <div class="mt-1"><a href="{{ manifest.view_url }}" target="_blank" rel="noopener noreferrer">View committed manifest in Git &#8599;</a></div>
+        {% endif %}
+    </div>
+    <div>
+        <div class="form-label">OpenTimestamps proof in Git</div>
+        <div class="text-dim">
+            {% if ots.exists and ots.matches_git %}
+                <span class="badge badge-confirmed">Matches Git</span>
+                The local <span class="text-mono">anchors/genesis.json.ots</span> file is byte-for-byte the same as the committed Git copy.
+            {% elif ots.exists and ots.committed %}
+                <span class="badge badge-failed">Differs from Git</span>
+                The local <span class="text-mono">anchors/genesis.json.ots</span> file does not match the committed Git copy.
+            {% elif ots.exists %}
+                <span class="badge badge-default">Not in Git</span>
+                The OpenTimestamps proof exists locally but is not committed to Git.
+            {% else %}
+                <span class="badge badge-default">Missing</span>
+                No local <span class="text-mono">anchors/genesis.json.ots</span> file was found.
+            {% endif %}
+        </div>
+        {% if ots.view_url %}
+        <div class="mt-1"><a href="{{ ots.view_url }}" target="_blank" rel="noopener noreferrer">View committed proof in Git &#8599;</a></div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-2 text-dim" style="font-size:0.9rem;">
+    You can download <span class="text-mono">anchors/genesis.json</span> and <span class="text-mono">anchors/genesis.json.ots</span> either from this app or from Git, then upload them manually to
+    <a href="https://opentimestamps.org/" target="_blank" rel="noopener noreferrer">OpenTimestamps.org</a>
+    to confirm the proof yourself.
+</div>
+{% endwith %}

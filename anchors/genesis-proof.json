@@ -1,0 +1,22 @@
+{
+  "proof_version": 1,
+  "subject": {
+    "network": "PatCoin",
+    "type": "genesis_anchor_manifest",
+    "manifest_path": "anchors/genesis.json",
+    "manifest_git_commit": "e1bfdd18969eebbe418153fcf7e668138846f826",
+    "manifest_sha256": "4a270b8a013355c816923c54cd7b6298d1e6fa136d8f993db17b525cd18b1292",
+    "genesis_block_hash": "ff3e51cf8603b4e5cd0be77aa7075ae1d10ad7755ce2ed0d82ee3eb0adc2233a"
+  },
+  "bitcoin_anchor": {
+    "status": "proof_file_present",
+    "method": "opentimestamps",
+    "network": "mainnet",
+    "opentimestamps": {
+      "ots_path": "anchors/genesis.json.ots",
+      "upgraded": false,
+      "calendar_urls": []
+    }
+  },
+  "verification": {}
+}

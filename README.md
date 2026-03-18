@@ -33,6 +33,8 @@ Transfers use PostgreSQL row-level locking (`SELECT ... FOR UPDATE`) on the send
 
 The genesis block's state (block hash, treasury wallet ID, mint amount) is exported to a JSON manifest at `anchors/genesis.json` and committed to Git. The system continuously compares live database state against this anchor, and optionally verifies the anchor's Git commit exists on the remote. This provides tamper detection: if someone modifies the genesis block or treasury, the mismatch is flagged.
 
+If you anchor that manifest to Bitcoin, record the proof metadata separately in `anchors/genesis-proof.json`. That companion file is the place to store the Bitcoin transaction ID, block details, and either `OP_RETURN` payload data or OpenTimestamps proof metadata without changing the canonical genesis manifest.
+
 ### Provenance Tracing
 
 For any wallet, the system traces all incoming funds back through the transfer chain using breadth-first search. If every path leads back to the genesis mint, the funds are verified as legitimate. The provenance page runs six checks: genesis exists, chain hashes valid, anchor file exists, anchor matches live data, anchor commit verified on remote, and funds trace to genesis.

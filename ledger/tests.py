@@ -19,6 +19,8 @@ from .genesis_anchor import (
     STATUS_MISMATCH,
     STATUS_REMOTE_UNVERIFIED,
     STATUS_VALID,
+    get_bitcoin_anchor_report,
+    get_git_file_metadata,
     get_git_anchor_metadata,
     get_anchor_manifest_path,
     get_genesis_anchor_report,
@@ -511,6 +513,55 @@ class GenesisAnchorTest(TestCase):
         self.assertEqual(report["status"], STATUS_MISMATCH)
         self.assertTrue(any("treasury_wallet.address" in mismatch for mismatch in report["mismatches"]))
 
+    def test_bitcoin_anchor_report_detects_proof_file_and_ots_artifact(self):
+        manifest_path = get_anchor_manifest_path()
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text("{}", encoding="utf-8")
+        proof_path = manifest_path.with_name("genesis-proof.json")
+        proof_path.write_text(
+            """
+            {
+              "subject": {"manifest_sha256": "abc"},
+              "bitcoin_anchor": {
+                "method": "opentimestamps",
+                "txid": null,
+                "opentimestamps": {"ots_path": "anchors/genesis.json.ots"}
+              },
+              "verification": {"bitcoin_proof_verified": false}
+            }
+            """.strip(),
+            encoding="utf-8",
+        )
+        manifest_path.with_name("genesis.json.ots").write_text("proof", encoding="utf-8")
+
+        report = get_bitcoin_anchor_report(manifest_path)
+
+        self.assertEqual(report["status"], "proof_file_present")
+        self.assertTrue(report["proof_exists"])
+        self.assertTrue(report["ots_exists"])
+        self.assertEqual(report["subject"]["manifest_sha256"], "abc")
+
+    @mock.patch("ledger.genesis_anchor._run_git")
+    def test_git_file_metadata_reports_git_match_and_urls(self, run_git_mock):
+        manifest_path = get_anchor_manifest_path()
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text("{}", encoding="utf-8")
+
+        run_git_mock.side_effect = [
+            mock.Mock(returncode=0, stdout=f"{manifest_path.parent.parent}\n", stderr=""),
+            mock.Mock(returncode=0, stdout="https://github.com/Alirvah/blockchain.git\n", stderr=""),
+            mock.Mock(returncode=0, stdout="a" * 40 + "\nabc1234\n", stderr=""),
+            mock.Mock(returncode=0, stdout="bloboid\n", stderr=""),
+            mock.Mock(returncode=0, stdout="bloboid\n", stderr=""),
+        ]
+
+        metadata = get_git_file_metadata(manifest_path)
+
+        self.assertTrue(metadata["committed"])
+        self.assertTrue(metadata["matches_git"])
+        self.assertEqual(metadata["view_url"], f"https://github.com/Alirvah/blockchain/blob/{'a' * 40}/anchors/genesis.json")
+        self.assertEqual(metadata["raw_url"], f"https://raw.githubusercontent.com/Alirvah/blockchain/{'a' * 40}/anchors/genesis.json")
+
     @mock.patch("ledger.genesis_anchor._verify_commit_url_online")
     @mock.patch("ledger.genesis_anchor._run_git")
     def test_git_anchor_metadata_derives_project_and_commit_links(self, run_git_mock, verify_mock):
@@ -749,6 +800,39 @@ class ViewRenderTest(TestCase):
                 "remote_url": None,
                 "remote_name": None,
             },
+            "bitcoin_proof": {
+                "status": "proof_file_present",
+                "proof_path": "anchors/genesis-proof.json",
+                "proof_exists": True,
+                "ots_path": "anchors/genesis.json.ots",
+                "ots_exists": True,
+                "subject": {"manifest_sha256": "manifest-sha"},
+                "anchor": {
+                    "txid": None,
+                    "block_height": None,
+                    "block_hash": None,
+                    "explorer_url": None,
+                    "opentimestamps": {"ots_path": "anchors/genesis.json.ots"},
+                },
+                "verification": {"bitcoin_proof_verified": False},
+                "error": None,
+            },
+            "files": {
+                "manifest": {
+                    "exists": True,
+                    "committed": True,
+                    "matches_git": True,
+                    "view_url": "https://example.com/blob/manifest",
+                    "raw_url": "https://example.com/raw/manifest",
+                },
+                "ots": {
+                    "exists": True,
+                    "committed": True,
+                    "matches_git": True,
+                    "view_url": "https://example.com/blob/ots",
+                    "raw_url": "https://example.com/raw/ots",
+                },
+            },
         }
         message_mock.return_value = "Local-only verification."
         response = self.client.get(reverse("explorer"))
@@ -756,6 +840,10 @@ class ViewRenderTest(TestCase):
         self.assertContains(response, "Genesis Anchor")
         self.assertContains(response, "Local Only")
         self.assertContains(response, "Local-only verification.")
+        self.assertContains(response, "Bitcoin Timestamp Proof")
+        self.assertContains(response, "anchors/genesis.json.ots")
+        self.assertContains(response, "Download genesis.json")
+        self.assertContains(response, "OpenTimestamps.org")
 
     def test_block_list_renders(self):
         response = self.client.get(reverse("block_list"))
@@ -768,6 +856,7 @@ class ViewRenderTest(TestCase):
     def test_chain_validate_renders(self):
         response = self.client.get(reverse("chain_validate"))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bitcoin Timestamp Proof")
 
     def test_pending_queue_renders(self):
         response = self.client.get(reverse("pending_queue"))
@@ -792,6 +881,39 @@ class ViewRenderTest(TestCase):
                 "remote_url": None,
                 "remote_name": None,
             },
+            "bitcoin_proof": {
+                "status": "proof_file_present",
+                "proof_path": "anchors/genesis-proof.json",
+                "proof_exists": True,
+                "ots_path": "anchors/genesis.json.ots",
+                "ots_exists": True,
+                "subject": {"manifest_sha256": "manifest-sha"},
+                "anchor": {
+                    "txid": None,
+                    "block_height": None,
+                    "block_hash": None,
+                    "explorer_url": None,
+                    "opentimestamps": {"ots_path": "anchors/genesis.json.ots"},
+                },
+                "verification": {"bitcoin_proof_verified": False},
+                "error": None,
+            },
+            "files": {
+                "manifest": {
+                    "exists": True,
+                    "committed": True,
+                    "matches_git": True,
+                    "view_url": "https://example.com/blob/manifest",
+                    "raw_url": "https://example.com/raw/manifest",
+                },
+                "ots": {
+                    "exists": True,
+                    "committed": True,
+                    "matches_git": True,
+                    "view_url": "https://example.com/blob/ots",
+                    "raw_url": "https://example.com/raw/ots",
+                },
+            },
         }
         message_mock.return_value = "Mismatch warning."
         treasury = Wallet.objects.get(wallet_type=Wallet.TREASURY)
@@ -799,6 +921,10 @@ class ViewRenderTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Verify My PatCoin")
         self.assertContains(response, "Mismatch")
+        self.assertContains(response, "Bitcoin timestamp proof")
+        self.assertContains(response, "anchors/genesis.json.ots")
+        self.assertContains(response, "Download genesis.json")
+        self.assertContains(response, "Matches Git")
 
 
 class HealthCacheTest(TestCase):

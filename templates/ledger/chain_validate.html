@@ -26,6 +26,88 @@
 
 <div class="section animate-in">
     <div class="section-header">
+        <h3 class="section-title">Bitcoin Timestamp Proof</h3>
+    </div>
+    <div class="card">
+        {% with btc=anchor_report.bitcoin_proof %}
+        <div class="anchor-trust-header">
+            <div>
+                <div class="form-label">Proof Status</div>
+                {% if btc.status == "verified" %}
+                <span class="badge badge-confirmed">Verified</span>
+                {% elif btc.status == "recorded" %}
+                <span class="badge badge-sealed">Transaction Recorded</span>
+                {% elif btc.status == "proof_file_present" %}
+                <span class="badge badge-pending">Proof File Present</span>
+                {% elif btc.status == "invalid" %}
+                <span class="badge badge-failed">Invalid Proof</span>
+                {% else %}
+                <span class="badge badge-default">Not Added</span>
+                {% endif %}
+            </div>
+            <div class="text-dim" style="font-size:0.85rem;">{{ anchor_status_message }}</div>
+        </div>
+
+        <div class="anchor-detail-grid mt-2">
+            <div>
+                <div class="form-label">Manifest SHA-256</div>
+                <div class="hash hash-full">
+                    {% if btc.subject and btc.subject.manifest_sha256 %}{{ btc.subject.manifest_sha256 }}{% else %}—{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="form-label">Proof File</div>
+                <div class="text-mono text-dim" style="word-break:break-all;">
+                    {% if btc.ots_exists %}{{ btc.ots_path }}{% elif btc.anchor and btc.anchor.opentimestamps and btc.anchor.opentimestamps.ots_path %}{{ btc.anchor.opentimestamps.ots_path }}{% elif btc.proof_exists %}{{ btc.proof_path }}{% else %}—{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="anchor-detail-grid mt-2">
+            <div>
+                <div class="form-label">Bitcoin TXID</div>
+                <div class="text-mono text-dim" style="word-break:break-all;">
+                    {% if btc.anchor and btc.anchor.txid %}{{ btc.anchor.txid }}{% else %}—{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="form-label">Bitcoin Block</div>
+                <div class="text-dim" style="word-break:break-all;">
+                    {% if btc.anchor and btc.anchor.block_height %}Height {{ btc.anchor.block_height }}{% else %}Height unknown{% endif %}
+                    {% if btc.anchor and btc.anchor.block_hash %} &middot; {{ btc.anchor.block_hash }}{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-2 text-dim" style="font-size:0.9rem;">
+            {% if btc.status == "verified" %}
+                This manifest has a Bitcoin-backed proof and it has been marked as verified.
+            {% elif btc.status == "recorded" %}
+                A Bitcoin transaction has been recorded for the genesis manifest, but verification metadata is still incomplete.
+            {% elif btc.status == "proof_file_present" %}
+                An OpenTimestamps proof file exists locally. Upgrade and verify it to tie the proof to a specific Bitcoin block and record the transaction details.
+            {% elif btc.status == "invalid" %}
+                The Bitcoin proof metadata file exists but could not be parsed.
+            {% else %}
+                No Bitcoin-backed proof has been added yet. The chain can still be internally valid and Git-anchored without this extra proof layer.
+            {% endif %}
+        </div>
+
+        {% if btc.anchor and btc.anchor.explorer_url %}
+        <div class="mt-2">
+            <a href="{{ btc.anchor.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                View Bitcoin transaction &#8599;
+            </a>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% include "ledger/_anchor_downloads.html" %}
+    </div>
+</div>
+
+<div class="section animate-in">
+    <div class="section-header">
         <h3 class="section-title">Block Hash Chain</h3>
     </div>
     <div class="table-container">

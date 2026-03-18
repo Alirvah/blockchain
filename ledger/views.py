@@ -5,9 +5,9 @@ from django.contrib import messages
 from django.contrib.auth import REDIRECT_FIELD_NAME, get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
-from django.db import models, transaction
-from django.http import JsonResponse
 from django.core.exceptions import PermissionDenied
+from django.http import FileResponse, Http404, JsonResponse
+from django.db import models, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
@@ -24,6 +24,7 @@ from .forms import (
     WalletCreateForm,
 )
 from .genesis_anchor import get_anchor_status_message
+from .genesis_anchor import get_anchor_manifest_path, get_anchor_ots_path
 from .health import (
     can_force_chain_refresh,
     ensure_background_validation,
@@ -689,6 +690,7 @@ def how_it_works(request):
 def chain_validate(request):
     force_refresh = can_force_chain_refresh(request)
     chain_validation = get_cached_chain_validation(force_refresh=force_refresh)
+    anchor_report = get_cached_anchor_report(force_refresh=force_refresh)
     blocks = Block.objects.filter(
         status__in=[Block.SEALED, Block.GENESIS]
     ).order_by("index")
@@ -696,6 +698,8 @@ def chain_validate(request):
         "is_valid": chain_validation["is_valid"],
         "errors": chain_validation["errors"],
         "blocks": blocks,
+        "anchor_report": anchor_report,
+        "anchor_status_message": get_anchor_status_message(anchor_report),
         "force_refresh": force_refresh,
     })
 
@@ -820,6 +824,28 @@ def provenance(request, wallet_id):
         "all_checks_pass": all_ok,
         "force_refresh": force_refresh,
     })
+
+
+@login_required
+def download_anchor_artifact(request, artifact):
+    if artifact == "manifest":
+        file_path = get_anchor_manifest_path()
+        content_type = "application/json"
+    elif artifact == "ots":
+        file_path = get_anchor_ots_path()
+        content_type = "application/octet-stream"
+    else:
+        raise Http404("Unknown anchor artifact.")
+
+    if not file_path.exists() or not file_path.is_file():
+        raise Http404("Anchor artifact not found.")
+
+    return FileResponse(
+        file_path.open("rb"),
+        as_attachment=True,
+        filename=file_path.name,
+        content_type=content_type,
+    )
 
 
 # ---------------------------------------------------------------------------

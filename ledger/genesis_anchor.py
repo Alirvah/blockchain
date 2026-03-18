@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import subprocess
 from decimal import Decimal
 from pathlib import Path
@@ -30,6 +31,27 @@ def get_anchor_manifest_path() -> Path:
     if configured.is_absolute():
         return configured
     return Path(settings.BASE_DIR) / configured
+
+
+def get_anchor_proof_path(manifest_path: Path | None = None) -> Path:
+    manifest_path = manifest_path or get_anchor_manifest_path()
+    return manifest_path.with_name(f"{manifest_path.stem}-proof.json")
+
+
+def get_anchor_ots_path(manifest_path: Path | None = None) -> Path:
+    manifest_path = manifest_path or get_anchor_manifest_path()
+    return manifest_path.with_name(f"{manifest_path.name}.ots")
+
+
+def _sha256_file(file_path: Path) -> str | None:
+    if not file_path.exists() or not file_path.is_file():
+        return None
+
+    digest = hashlib.sha256()
+    with file_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _format_amount(value: Decimal | str | int | float) -> str:
@@ -108,6 +130,54 @@ def load_genesis_anchor(manifest_path: Path | None = None) -> dict[str, Any]:
     return json.loads(manifest_path.read_text(encoding="utf-8"))
 
 
+def load_genesis_anchor_proof(proof_path: Path | None = None) -> dict[str, Any]:
+    proof_path = proof_path or get_anchor_proof_path()
+    return json.loads(proof_path.read_text(encoding="utf-8"))
+
+
+def get_bitcoin_anchor_report(manifest_path: Path | None = None) -> dict[str, Any]:
+    manifest_path = manifest_path or get_anchor_manifest_path()
+    proof_path = get_anchor_proof_path(manifest_path)
+    ots_path = get_anchor_ots_path(manifest_path)
+    report: dict[str, Any] = {
+        "status": "missing",
+        "proof_path": str(proof_path),
+        "proof_exists": proof_path.exists(),
+        "proof": None,
+        "ots_path": str(ots_path),
+        "ots_exists": ots_path.exists(),
+        "subject": None,
+        "anchor": None,
+        "verification": None,
+        "error": None,
+    }
+
+    if proof_path.exists():
+        try:
+            proof = load_genesis_anchor_proof(proof_path)
+        except (json.JSONDecodeError, OSError) as exc:
+            report["status"] = "invalid"
+            report["error"] = str(exc)
+            return report
+
+        report["proof"] = proof
+        report["subject"] = proof.get("subject")
+        report["anchor"] = proof.get("bitcoin_anchor")
+        report["verification"] = proof.get("verification")
+
+    anchor = report.get("anchor") or {}
+    verification = report.get("verification") or {}
+
+    if verification.get("bitcoin_proof_verified"):
+        report["status"] = "verified"
+    elif anchor.get("txid"):
+        report["status"] = "recorded"
+    elif report["ots_exists"] or report["proof_exists"]:
+        report["status"] = "proof_file_present"
+
+    return report
+
+
 def _compare_field(mismatches: list[str], label: str, expected: Any, actual: Any) -> None:
     if expected != actual:
         mismatches.append(f"{label}: anchored={expected!r} live={actual!r}")
@@ -179,6 +249,34 @@ def _build_commit_url(project_url: str | None, commit_sha: str | None) -> str | 
     host = parsed.netloc.lower()
     if "github.com" in host or "gitlab.com" in host:
         return f"{project_url}/commit/{commit_sha}"
+    return None
+
+
+def _build_git_file_url(project_url: str | None, commit_sha: str | None, relative_path: str | None) -> str | None:
+    if not project_url or not commit_sha or not relative_path:
+        return None
+
+    parsed = urlparse(project_url)
+    host = parsed.netloc.lower()
+    path = parsed.path.strip("/")
+    if "github.com" in host:
+        return f"{project_url}/blob/{commit_sha}/{relative_path}"
+    if "gitlab.com" in host:
+        return f"{project_url}/-/blob/{commit_sha}/{relative_path}"
+    return None
+
+
+def _build_git_raw_file_url(project_url: str | None, commit_sha: str | None, relative_path: str | None) -> str | None:
+    if not project_url or not commit_sha or not relative_path:
+        return None
+
+    parsed = urlparse(project_url)
+    host = parsed.netloc.lower()
+    path = parsed.path.strip("/")
+    if "github.com" in host and path:
+        return f"https://raw.githubusercontent.com/{path}/{commit_sha}/{relative_path}"
+    if "gitlab.com" in host:
+        return f"{project_url}/-/raw/{commit_sha}/{relative_path}"
     return None
 
 
@@ -272,8 +370,73 @@ def get_git_anchor_metadata(manifest_path: Path | None = None) -> dict[str, Any]
     }
 
 
+def get_git_file_metadata(file_path: Path) -> dict[str, Any]:
+    file_path = Path(file_path)
+    metadata: dict[str, Any] = {
+        "path": str(file_path),
+        "exists": file_path.exists(),
+        "relative_path": None,
+        "sha256": _sha256_file(file_path),
+        "committed": False,
+        "commit_sha": None,
+        "commit_short": None,
+        "local_blob_oid": None,
+        "git_blob_oid": None,
+        "matches_git": False,
+        "project_url": None,
+        "view_url": None,
+        "raw_url": None,
+    }
+
+    repo_check = _run_git("rev-parse", "--show-toplevel")
+    if not repo_check or repo_check.returncode != 0:
+        return metadata
+
+    repo_root = Path(repo_check.stdout.strip())
+    try:
+        relative_path = file_path.relative_to(repo_root)
+    except ValueError:
+        return metadata
+
+    relative_str = relative_path.as_posix()
+    metadata["relative_path"] = relative_str
+
+    remote_info = _run_git("remote", "get-url", "origin")
+    project_url = None
+    if remote_info and remote_info.returncode == 0:
+        project_url = _normalize_remote_web_url(remote_info.stdout.strip() or None)
+    metadata["project_url"] = project_url
+
+    commit_info = _run_git("log", "-1", "--format=%H%n%h", "--", relative_str)
+    if commit_info and commit_info.returncode == 0 and commit_info.stdout.strip():
+        lines = commit_info.stdout.strip().splitlines()
+        if len(lines) >= 2:
+            metadata["commit_sha"], metadata["commit_short"] = lines[:2]
+            metadata["committed"] = True
+
+    if metadata["exists"]:
+        local_blob = _run_git("hash-object", str(file_path))
+        if local_blob and local_blob.returncode == 0:
+            metadata["local_blob_oid"] = local_blob.stdout.strip() or None
+
+    if metadata["committed"] and metadata["relative_path"]:
+        git_blob = _run_git("rev-parse", f"{metadata['commit_sha']}:{metadata['relative_path']}")
+        if git_blob and git_blob.returncode == 0:
+            metadata["git_blob_oid"] = git_blob.stdout.strip() or None
+
+    metadata["matches_git"] = bool(
+        metadata["local_blob_oid"]
+        and metadata["git_blob_oid"]
+        and metadata["local_blob_oid"] == metadata["git_blob_oid"]
+    )
+    metadata["view_url"] = _build_git_file_url(project_url, metadata["commit_sha"], metadata["relative_path"])
+    metadata["raw_url"] = _build_git_raw_file_url(project_url, metadata["commit_sha"], metadata["relative_path"])
+    return metadata
+
+
 def get_genesis_anchor_report() -> dict[str, Any]:
     manifest_path = get_anchor_manifest_path()
+    ots_path = get_anchor_ots_path(manifest_path)
     report: dict[str, Any] = {
         "status": STATUS_ANCHOR_MISSING,
         "manifest_path": str(manifest_path),
@@ -283,6 +446,11 @@ def get_genesis_anchor_report() -> dict[str, Any]:
         "anchor": None,
         "db_matches_anchor": False,
         "git": get_git_anchor_metadata(manifest_path),
+        "bitcoin_proof": get_bitcoin_anchor_report(manifest_path),
+        "files": {
+            "manifest": get_git_file_metadata(manifest_path),
+            "ots": get_git_file_metadata(ots_path),
+        },
     }
 
     try:

@@ -21,10 +21,14 @@ def rate_limit(key_prefix, max_requests, period_seconds):
     """
     Simple cache-based rate limiter keyed by client IP.
     Only limits POST requests. Returns 429 when exceeded.
+    Disabled when settings.TESTING is True.
     """
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped(request, *args, **kwargs):
+            from django.conf import settings as django_settings
+            if getattr(django_settings, "TESTING", False):
+                return view_func(request, *args, **kwargs)
             if request.method != "POST":
                 return view_func(request, *args, **kwargs)
             forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")

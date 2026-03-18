@@ -872,6 +872,39 @@ code, .mono { font-family: var(--font-mono); font-size: 0.875em; }
     min-width: 100px;
 }
 
+/* Collapsed middle items in chain viz */
+.chain-viz .chain-hidden { display: none; }
+
+.chain-ellipsis {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    flex-shrink: 0;
+}
+
+.chain-ellipsis-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.7rem;
+    border: 2px dashed var(--color-border);
+    background: var(--color-bg-card);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    transition: all var(--transition);
+}
+
+.chain-ellipsis:hover .chain-ellipsis-dot {
+    border-color: var(--color-accent);
+    color: var(--color-accent-light);
+}
+
 .chain-block-node {
     width: 60px;
     height: 60px;

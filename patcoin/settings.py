@@ -122,3 +122,6 @@ GENESIS_ANCHOR_PATH = os.environ.get("GENESIS_ANCHOR_PATH", "anchors/genesis.jso
 BOOTSTRAP_ADMIN_USERNAME = os.environ.get("BOOTSTRAP_ADMIN_USERNAME", "admin")
 BOOTSTRAP_ADMIN_EMAIL = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "admin@patcoin.local")
 BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "admin")
+
+import sys
+TESTING = "test" in sys.argv

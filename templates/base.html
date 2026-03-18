@@ -144,7 +144,7 @@
             <span class="tab-icon">&#9783;</span>
             <span class="tab-label">Explorer</span>
         </a>
-        <a href="{% url 'how_it_works' %}" class="bottom-tab {% if request.resolver_match.url_name == 'how_it_works' or request.resolver_match.url_name == 'chain_validate' %}active{% endif %}">
+        <a href="{% url 'chain_validate' %}" class="bottom-tab {% if request.resolver_match.url_name == 'chain_validate' or request.resolver_match.url_name == 'how_it_works' %}active{% endif %}">
             <span class="tab-icon">&#9745;</span>
             <span class="tab-label">Verify</span>
         </a>
@@ -165,7 +165,7 @@
             <span class="tab-icon">&#10148;</span>
             <span class="tab-label">Send</span>
         </a>
-        <a href="{% url 'how_it_works' %}" class="bottom-tab {% if request.resolver_match.url_name == 'how_it_works' or request.resolver_match.url_name == 'chain_validate' %}active{% endif %}">
+        <a href="{% url 'chain_validate' %}" class="bottom-tab {% if request.resolver_match.url_name == 'chain_validate' or request.resolver_match.url_name == 'how_it_works' %}active{% endif %}">
             <span class="tab-icon">&#9745;</span>
             <span class="tab-label">Verify</span>
         </a>
@@ -191,6 +191,52 @@ function closeSidebarMobile() {
         document.body.style.overflow = '';
     }
 }
+
+/* Collapse middle blocks in chain visualizations */
+(function() {
+    var SHOW_ENDS = 2; /* show first N and last N */
+    document.querySelectorAll('.chain-viz').forEach(function(viz) {
+        /* Collect block+link pairs as contiguous items */
+        var items = Array.from(viz.children);
+        var blocks = items.filter(function(el) { return el.classList.contains('chain-block'); });
+        if (blocks.length <= SHOW_ENDS * 2 + 1) return; /* nothing to collapse */
+
+        var hiddenCount = blocks.length - SHOW_ENDS * 2;
+        var hideStart = false;
+        var blockIdx = 0;
+        var toHide = [];
+
+        items.forEach(function(el) {
+            if (el.classList.contains('chain-block')) {
+                blockIdx++;
+                if (blockIdx > SHOW_ENDS && blockIdx <= blocks.length - SHOW_ENDS) {
+                    toHide.push(el);
+                }
+            } else if (el.classList.contains('chain-link')) {
+                /* Hide links adjacent to hidden blocks */
+                if (blockIdx >= SHOW_ENDS && blockIdx <= blocks.length - SHOW_ENDS) {
+                    toHide.push(el);
+                }
+            }
+        });
+
+        toHide.forEach(function(el) { el.classList.add('chain-hidden'); });
+
+        /* Insert ellipsis button */
+        var ellipsis = document.createElement('div');
+        ellipsis.className = 'chain-ellipsis';
+        ellipsis.innerHTML = '<div class="chain-link"></div><div class="chain-ellipsis-dot">+' + hiddenCount + '</div><div class="chain-link"></div>';
+        ellipsis.title = 'Show ' + hiddenCount + ' hidden blocks';
+        ellipsis.addEventListener('click', function() {
+            toHide.forEach(function(el) { el.classList.remove('chain-hidden'); });
+            ellipsis.remove();
+        });
+
+        /* Insert after the last visible "start" block */
+        var insertAfter = blocks[SHOW_ENDS - 1];
+        insertAfter.parentNode.insertBefore(ellipsis, insertAfter.nextSibling);
+    });
+})();
 </script>
 {% endblock %}
 {% block extra_js %}{% endblock %}

@@ -13,3 +13,4 @@ media/
 .DS_Store
 .claude/
 gunicorn.ctl
+backup/

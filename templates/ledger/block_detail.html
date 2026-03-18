@@ -78,7 +78,7 @@
             <tbody>
                 {% for tx in transfers %}
                 <tr>
-                    <td class="text-mono">{{ tx.tx_hash|hash_short }}</td>
+                    <td class="text-mono"><a href="{% url 'transfer_detail' tx.id %}">{{ tx.tx_hash|hash_short }}</a></td>
                     <td>{% if tx.sender %}{% wallet_name tx.sender %}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>
                     <td>{% wallet_name tx.recipient %}</td>
                     <td class="text-accent">{{ tx.amount|patcoin }} PAT</td>

@@ -396,6 +396,31 @@ def transfer_list(request):
     })
 
 
+@login_required
+def transfer_detail(request, transfer_id):
+    tx = get_object_or_404(
+        Transfer.objects.select_related(
+            "sender",
+            "sender__owner",
+            "recipient",
+            "recipient__owner",
+            "block",
+        ),
+        id=transfer_id,
+    )
+
+    is_owner = (
+        (tx.sender and tx.sender.owner_id == request.user.id)
+        or tx.recipient.owner_id == request.user.id
+    )
+    is_public_chain_tx = tx.block and tx.block.status in [Block.SEALED, Block.GENESIS]
+
+    if not request.user.is_staff and not is_owner and not is_public_chain_tx:
+        raise PermissionDenied
+
+    return render(request, "ledger/transfer_detail.html", {"tx": tx})
+
+
 @staff_required
 def transfer_create(request):
     form = TransferForm(request.POST or None)

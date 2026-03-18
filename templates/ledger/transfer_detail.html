@@ -1,0 +1,95 @@
+{% extends "base.html" %}{% load ledger_tags %}
+
+{% block title %}Transaction {{ tx.tx_hash|hash_short:12 }} &mdash; PatCoin{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in">
+    <div class="breadcrumb">
+        {% if tx.block %}
+        <a href="{% url 'block_detail' tx.block.id %}">Block #{{ tx.block.index }}</a> <span class="sep">/</span>
+        {% elif user.is_staff %}
+        <a href="{% url 'transfer_list' %}">Transfers</a> <span class="sep">/</span>
+        {% endif %}
+        {{ tx.tx_hash|hash_short:12 }}
+    </div>
+    <h2>Transaction Details</h2>
+    <p class="subtitle text-mono">{{ tx.tx_hash }}</p>
+</div>
+
+<div class="stats-grid animate-in">
+    <div class="stat-card">
+        <div class="stat-label">Amount</div>
+        <div class="stat-value">{{ tx.amount|patcoin }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Status</div>
+        <div><span class="badge {{ tx.status|status_badge_class }}" style="font-size:0.85rem;padding:0.3rem 0.8rem;">{{ tx.status }}</span></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Block</div>
+        <div class="text-dim">
+            {% if tx.block %}
+            <a href="{% url 'block_detail' tx.block.id %}">#{{ tx.block.index }}</a>
+            {% else %}
+            Pending
+            {% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Created</div>
+        <div class="text-dim">{{ tx.created_at|time_ago }}</div>
+    </div>
+</div>
+
+<div class="card animate-in">
+    <div class="card-header">
+        <span class="card-title">Transaction Details</span>
+    </div>
+    <div class="detail-grid">
+        <div class="detail-row">
+            <div class="detail-label">TX Hash</div>
+            <div class="detail-value hash hash-full">{{ tx.tx_hash }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">From</div>
+            <div class="detail-value">
+                {% if tx.sender %}
+                <span class="text-mono">{{ tx.sender.address }}</span>
+                {% else %}
+                <span class="badge badge-genesis">MINT</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">To</div>
+            <div class="detail-value"><span class="text-mono">{{ tx.recipient.address }}</span></div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Amount</div>
+            <div class="detail-value">{{ tx.amount|patcoin }} PAT</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Memo</div>
+            <div class="detail-value">{{ tx.memo|default:"—" }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Status</div>
+            <div class="detail-value">{{ tx.status }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Block</div>
+            <div class="detail-value">
+                {% if tx.block %}
+                <a href="{% url 'block_detail' tx.block.id %}">Block #{{ tx.block.index }}</a>
+                {% else %}
+                Not sealed yet
+                {% endif %}
+            </div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Created</div>
+            <div class="detail-value">{{ tx.created_at|time_ago }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

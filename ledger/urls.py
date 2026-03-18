@@ -27,6 +27,7 @@ urlpatterns = [
     # Transfers
     path("transfers/", views.transfer_list, name="transfer_list"),
     path("transfers/create/", views.transfer_create, name="transfer_create"),
+    path("transfers/<uuid:transfer_id>/", views.transfer_detail, name="transfer_detail"),
     path("send/", views.customer_send, name="customer_send"),
     path("pay/<str:address>/", views.patcoin_pay, name="patcoin_pay"),
 

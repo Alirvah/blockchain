@@ -15,6 +15,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if Block.objects.filter(status=Block.GENESIS).exists():
+            invalidate_chain_health_cache()
             self.stdout.write(self.style.WARNING("Genesis block already exists. Skipping."))
             return
 

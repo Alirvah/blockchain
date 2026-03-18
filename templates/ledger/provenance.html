@@ -112,7 +112,7 @@
                     {% if tx.block %}Block <a href="{% url 'block_detail' tx.block.id %}">#{{ tx.block.index }}</a> &middot; {% endif %}
                     {{ tx.created_at|time_ago }}
                 </div>
-                <div class="flow-node-hash">TX {{ tx.tx_hash|hash_short:16 }}</div>
+                <div class="flow-node-hash">TX <a href="{% url 'transfer_detail' tx.id %}">{{ tx.tx_hash|hash_short:16 }}</a></div>
             </div>
         </div>
         <div class="flow-connector"></div>
@@ -126,7 +126,7 @@
                     {% if tx.block %}Block <a href="{% url 'block_detail' tx.block.id %}">#{{ tx.block.index }}</a> &middot; {% endif %}
                     {{ tx.created_at|time_ago }}
                 </div>
-                <div class="flow-node-hash">TX {{ tx.tx_hash|hash_short:16 }}</div>
+                <div class="flow-node-hash">TX <a href="{% url 'transfer_detail' tx.id %}">{{ tx.tx_hash|hash_short:16 }}</a></div>
             </div>
         </div>
         <div class="flow-connector"></div>
@@ -304,7 +304,7 @@
                 <tbody>
                     {% for tx in all_transfers %}
                     <tr>
-                        <td class="text-mono">{{ tx.tx_hash|hash_short }}</td>
+                        <td class="text-mono"><a href="{% url 'transfer_detail' tx.id %}">{{ tx.tx_hash|hash_short }}</a></td>
                         {% if tx.recipient == wallet %}
                         <td><span class="text-success">&#8595; In</span></td>
                         <td>{% if tx.sender %}{% wallet_name tx.sender %}{% else %}<span class="badge badge-genesis">MINT</span>{% endif %}</td>

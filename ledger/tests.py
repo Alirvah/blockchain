@@ -63,6 +63,20 @@ class GenesisBootstrapTest(TestCase):
         self.assertEqual(Wallet.objects.filter(wallet_type=Wallet.TREASURY).count(), 1)
         self.assertEqual(Transfer.objects.filter(sender=None).count(), 1)
 
+    def test_bootstrap_existing_genesis_clears_health_cache(self):
+        """Re-running bootstrap clears stale cached health state."""
+        call_command("bootstrap_genesis")
+        from .health import ANCHOR_REPORT_CACHE_KEY, LAYOUT_STATUS_CACHE_KEY
+        from django.core.cache import cache
+
+        cache.set(ANCHOR_REPORT_CACHE_KEY, {"status": "mismatch"}, 300)
+        cache.set(LAYOUT_STATUS_CACHE_KEY, {"anchor_status": "mismatch"}, 300)
+
+        call_command("bootstrap_genesis")
+
+        self.assertIsNone(cache.get(ANCHOR_REPORT_CACHE_KEY))
+        self.assertIsNone(cache.get(LAYOUT_STATUS_CACHE_KEY))
+
 
 class TransferSupplyTest(TestCase):
     def setUp(self):
@@ -290,6 +304,67 @@ class AuthorizationTest(TestCase):
 
         response = client.get(reverse("provenance", args=[self.wallet2.id]))
         self.assertEqual(response.status_code, 200)
+
+    def test_customer_can_view_sealed_transfer_detail_and_memo(self):
+        client = Client()
+        client.login(username="user1", password="test")
+
+        genesis = Block.objects.get(status=Block.GENESIS)
+        block = Block.objects.create(
+            index=1, status=Block.PENDING, previous_hash=genesis.block_hash
+        )
+        tx = Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet2,
+            amount=Decimal("15.00"),
+            memo="Invoice #42",
+            status=Transfer.PENDING,
+            block=block,
+        )
+        block.seal()
+        tx.refresh_from_db()
+
+        response = client.get(reverse("transfer_detail", args=[tx.id]))
+        block_response = client.get(reverse("block_detail", args=[block.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invoice #42")
+        self.assertContains(response, self.treasury.address)
+        self.assertContains(response, self.wallet2.address)
+        self.assertContains(block_response, reverse("transfer_detail", args=[tx.id]))
+
+    def test_customer_cannot_view_other_pending_transfer_detail(self):
+        client = Client()
+        client.login(username="user1", password="test")
+
+        tx = Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet2,
+            amount=Decimal("9.00"),
+            memo="Private pending",
+            status=Transfer.PENDING,
+        )
+
+        response = client.get(reverse("transfer_detail", args=[tx.id]))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_customer_can_view_own_pending_transfer_detail(self):
+        client = Client()
+        client.login(username="user2", password="test")
+
+        tx = Transfer.objects.create(
+            sender=self.treasury,
+            recipient=self.wallet2,
+            amount=Decimal("11.00"),
+            memo="Top up",
+            status=Transfer.PENDING,
+        )
+
+        response = client.get(reverse("transfer_detail", args=[tx.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Top up")
 
     def test_customer_can_view_chain_validate(self):
         """Any logged-in user can open chain validation."""

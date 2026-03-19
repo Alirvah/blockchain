@@ -540,6 +540,35 @@ class GenesisAnchorTest(TestCase):
         self.assertTrue(report["proof_exists"])
         self.assertTrue(report["ots_exists"])
         self.assertEqual(report["subject"]["manifest_sha256"], "abc")
+        self.assertEqual(report["attestations"], [])
+
+    def test_bitcoin_anchor_report_normalizes_multiple_attestations(self):
+        manifest_path = get_anchor_manifest_path()
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        proof_path = manifest_path.with_name("genesis-proof.json")
+        proof_path.write_text(
+            """
+            {
+              "subject": {"manifest_sha256": "abc"},
+              "bitcoin_anchor": {
+                "method": "opentimestamps",
+                "attestations": [
+                  {"txid": "b", "block_height": 101},
+                  {"txid": "a", "block_height": 100}
+                ],
+                "opentimestamps": {"ots_path": "anchors/genesis.json.ots"}
+              },
+              "verification": {"bitcoin_proof_verified": false}
+            }
+            """.strip(),
+            encoding="utf-8",
+        )
+
+        report = get_bitcoin_anchor_report(manifest_path)
+
+        self.assertEqual(report["status"], "recorded")
+        self.assertEqual(report["attestations"][0]["txid"], "a")
+        self.assertEqual(report["primary_attestation"]["txid"], "a")
 
     @mock.patch("ledger.genesis_anchor._run_git")
     def test_git_file_metadata_reports_git_match_and_urls(self, run_git_mock):
@@ -801,19 +830,20 @@ class ViewRenderTest(TestCase):
                 "remote_name": None,
             },
             "bitcoin_proof": {
-                "status": "proof_file_present",
+                "status": "recorded",
                 "proof_path": "anchors/genesis-proof.json",
                 "proof_exists": True,
                 "ots_path": "anchors/genesis.json.ots",
                 "ots_exists": True,
                 "subject": {"manifest_sha256": "manifest-sha"},
                 "anchor": {
-                    "txid": None,
-                    "block_height": None,
-                    "block_hash": None,
-                    "explorer_url": None,
                     "opentimestamps": {"ots_path": "anchors/genesis.json.ots"},
                 },
+                "attestations": [
+                    {"txid": "tx-1", "block_height": 100, "explorer_url": "https://example.com/tx-1"},
+                    {"txid": "tx-2", "block_height": 101, "explorer_url": "https://example.com/tx-2"},
+                ],
+                "primary_attestation": {"txid": "tx-1", "block_height": 100, "explorer_url": "https://example.com/tx-1"},
                 "verification": {"bitcoin_proof_verified": False},
                 "error": None,
             },
@@ -842,6 +872,9 @@ class ViewRenderTest(TestCase):
         self.assertContains(response, "Local-only verification.")
         self.assertContains(response, "Bitcoin Timestamp Proof")
         self.assertContains(response, "anchors/genesis.json.ots")
+        self.assertContains(response, "tx-1")
+        self.assertContains(response, "Proof Trail")
+        self.assertContains(response, "Open Transaction")
         self.assertContains(response, "Download genesis.json")
         self.assertContains(response, "OpenTimestamps.org")
 
@@ -882,19 +915,20 @@ class ViewRenderTest(TestCase):
                 "remote_name": None,
             },
             "bitcoin_proof": {
-                "status": "proof_file_present",
+                "status": "recorded",
                 "proof_path": "anchors/genesis-proof.json",
                 "proof_exists": True,
                 "ots_path": "anchors/genesis.json.ots",
                 "ots_exists": True,
                 "subject": {"manifest_sha256": "manifest-sha"},
                 "anchor": {
-                    "txid": None,
-                    "block_height": None,
-                    "block_hash": None,
-                    "explorer_url": None,
                     "opentimestamps": {"ots_path": "anchors/genesis.json.ots"},
                 },
+                "attestations": [
+                    {"txid": "tx-1", "block_height": 100, "explorer_url": "https://example.com/tx-1"},
+                    {"txid": "tx-2", "block_height": 101, "explorer_url": "https://example.com/tx-2"},
+                ],
+                "primary_attestation": {"txid": "tx-1", "block_height": 100, "explorer_url": "https://example.com/tx-1"},
                 "verification": {"bitcoin_proof_verified": False},
                 "error": None,
             },
@@ -923,6 +957,9 @@ class ViewRenderTest(TestCase):
         self.assertContains(response, "Mismatch")
         self.assertContains(response, "Bitcoin timestamp proof")
         self.assertContains(response, "anchors/genesis.json.ots")
+        self.assertContains(response, "tx-1")
+        self.assertContains(response, "Proof Trail")
+        self.assertContains(response, "Open Transaction")
         self.assertContains(response, "Download genesis.json")
         self.assertContains(response, "Matches Git")
 

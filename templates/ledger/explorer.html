@@ -189,7 +189,7 @@
                         Bitcoin-backed proof verified for this manifest
                     {% elif btc.status == "recorded" %}
                         <span class="badge badge-sealed">Transaction Recorded</span>
-                        Bitcoin transaction metadata has been recorded
+                        {{ btc.attestations|length }} Bitcoin attestation{{ btc.attestations|length|pluralize }} recorded for this manifest
                     {% elif btc.status == "proof_file_present" %}
                         <span class="badge badge-pending">Proof File Present</span>
                         OpenTimestamps proof file detected for the manifest
@@ -210,7 +210,7 @@
             </div>
         </div>
 
-        {% if btc.ots_exists or btc.proof_exists or btc.anchor.txid %}
+        {% if btc.ots_exists or btc.proof_exists or btc.attestations %}
         <div class="anchor-detail-grid mt-2">
             <div>
                 <div class="form-label">Proof Artifact</div>
@@ -219,19 +219,29 @@
                 </div>
             </div>
             <div>
-                <div class="form-label">Bitcoin TXID</div>
+                <div class="form-label">Bitcoin Attestations</div>
                 <div class="text-mono text-dim" style="word-break:break-all;">
-                    {% if btc.anchor and btc.anchor.txid %}{{ btc.anchor.txid }}{% else %}—{% endif %}
+                    {% if btc.attestations %}
+                        {% for attestation in btc.attestations %}
+                            <div>{% if attestation.block_height %}#{{ attestation.block_height }} &middot; {% endif %}{{ attestation.txid|default:"Unknown TXID" }}</div>
+                        {% endfor %}
+                    {% else %}
+                        —
+                    {% endif %}
                 </div>
             </div>
         </div>
         {% endif %}
 
-        {% if btc.anchor and btc.anchor.explorer_url %}
+        {% if btc.attestations %}
         <div class="mt-2">
-            <a href="{{ btc.anchor.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
-                View Bitcoin transaction &#8599;
-            </a>
+            {% for attestation in btc.attestations %}
+                {% if attestation.explorer_url %}
+                <a href="{{ attestation.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                    View Bitcoin TX {{ forloop.counter }} &#8599;
+                </a>
+                {% endif %}
+            {% endfor %}
         </div>
         {% endif %}
         {% endwith %}

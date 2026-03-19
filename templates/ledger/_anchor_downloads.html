@@ -1,4 +1,60 @@
 {% with manifest=anchor_report.files.manifest ots=anchor_report.files.ots %}
+{% with btc=anchor_report.bitcoin_proof %}
+<div class="mt-2">
+    <div class="form-label">Proof Trail</div>
+    <div class="proof-trail">
+        <div class="proof-node">
+            <div class="proof-node-label">1. Genesis Manifest</div>
+            <div class="proof-node-title text-mono">anchors/genesis.json</div>
+            <div class="proof-node-sub">The PatCoin genesis state you are verifying.</div>
+            <div class="proof-node-actions">
+                <a href="{% url 'download_anchor_artifact' 'manifest' %}" class="btn btn-secondary">Download</a>
+                {% if manifest.view_url %}
+                <a href="{{ manifest.view_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Git Copy &#8599;</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="proof-trail-link">SHA-256 stamped</div>
+        <div class="proof-node">
+            <div class="proof-node-label">2. OpenTimestamps Proof</div>
+            <div class="proof-node-title text-mono">anchors/genesis.json.ots</div>
+            <div class="proof-node-sub">Portable proof file derived from the manifest hash.</div>
+            <div class="proof-node-actions">
+                {% if ots.exists %}
+                <a href="{% url 'download_anchor_artifact' 'ots' %}" class="btn btn-secondary">Download</a>
+                {% endif %}
+                {% if ots.view_url %}
+                <a href="{{ ots.view_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Git Copy &#8599;</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="proof-trail-link">Anchored to Bitcoin</div>
+        {% if btc.attestations %}
+            {% for attestation in btc.attestations %}
+            <div class="proof-node proof-node-bitcoin">
+                <div class="proof-node-label">3. Bitcoin Attestation {{ forloop.counter }}</div>
+                <div class="proof-node-title text-mono">{{ attestation.txid|default:"Unknown TXID" }}</div>
+                <div class="proof-node-sub">
+                    {% if attestation.block_height %}Block {{ attestation.block_height }}{% else %}Block height pending{% endif %}
+                    {% if attestation.calendar %} via {{ attestation.calendar }}{% endif %}
+                </div>
+                <div class="proof-node-actions">
+                    {% if attestation.explorer_url %}
+                    <a href="{{ attestation.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Open Transaction &#8599;</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="proof-node proof-node-bitcoin">
+                <div class="proof-node-label">3. Bitcoin Attestation</div>
+                <div class="proof-node-title">Awaiting Confirmation</div>
+                <div class="proof-node-sub">The proof file exists, but the final Bitcoin attestation has not been recorded yet.</div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="anchor-proof-link mt-2">
     <div class="form-label">Download and verify yourself</div>
     <a href="{% url 'download_anchor_artifact' 'manifest' %}" class="btn btn-secondary">Download genesis.json</a>
@@ -58,6 +114,7 @@
 <div class="mt-2 text-dim" style="font-size:0.9rem;">
     You can download <span class="text-mono">anchors/genesis.json</span> and <span class="text-mono">anchors/genesis.json.ots</span> either from this app or from Git, then upload them manually to
     <a href="https://opentimestamps.org/" target="_blank" rel="noopener noreferrer">OpenTimestamps.org</a>
-    to confirm the proof yourself.
+    to confirm the proof yourself. Follow the proof trail above to move from the PatCoin genesis manifest to the OpenTimestamps proof and then to the Bitcoin transaction(s).
 </div>
+{% endwith %}
 {% endwith %}

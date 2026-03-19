@@ -2315,6 +2315,74 @@ code, .mono { font-family: var(--font-mono); font-size: 0.875em; }
     flex-wrap: wrap;
 }
 
+.proof-trail {
+    display: flex;
+    align-items: stretch;
+    gap: 0.9rem;
+    padding: 0 1.25rem 1rem;
+    overflow-x: auto;
+}
+
+.proof-trail-link {
+    flex: 0 0 auto;
+    align-self: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+    padding: 0.5rem 0.25rem;
+}
+
+.proof-node {
+    flex: 0 0 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.95rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+        rgba(255,255,255,0.02);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.proof-node-bitcoin {
+    border-color: rgba(255, 179, 71, 0.35);
+    background:
+        linear-gradient(180deg, rgba(255,179,71,0.08), rgba(255,179,71,0.02)),
+        rgba(255,255,255,0.02);
+}
+
+.proof-node-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+}
+
+.proof-node-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--color-text);
+    word-break: break-all;
+}
+
+.proof-node-sub {
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--color-text-dim);
+}
+
+.proof-node-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: auto;
+}
+
 .validation-fail {
     margin: 0 1.25rem 1.25rem;
     padding: 0.75rem 1rem;
@@ -2428,6 +2496,25 @@ code, .mono { font-family: var(--font-mono); font-size: 0.875em; }
         flex-direction: column;
     }
     .anchor-proof-link .btn { width: 100%; text-align: center; }
+    .proof-trail {
+        padding: 0 1rem 1rem;
+        flex-direction: column;
+        overflow-x: visible;
+    }
+    .proof-trail-link {
+        align-self: flex-start;
+        padding: 0;
+    }
+    .proof-node {
+        flex-basis: auto;
+    }
+    .proof-node-actions {
+        flex-direction: column;
+    }
+    .proof-node-actions .btn {
+        width: 100%;
+        text-align: center;
+    }
 }
 
 /* ================================================================

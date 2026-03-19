@@ -233,7 +233,7 @@
                     {% if btc.status == "verified" %}
                         This genesis manifest has a recorded Bitcoin proof and has been marked as verified.
                     {% elif btc.status == "recorded" %}
-                        A Bitcoin transaction has been recorded for this genesis anchor.
+                        {{ btc.attestations|length }} Bitcoin attestation{{ btc.attestations|length|pluralize }} {{ btc.attestations|length|pluralize:"has,have" }} been recorded for this genesis anchor.
                     {% elif btc.status == "proof_file_present" %}
                         An OpenTimestamps proof file exists for the genesis manifest. Upgrade and verify it to tie the proof to a specific Bitcoin block.
                     {% elif btc.status == "invalid" %}
@@ -263,27 +263,30 @@
     </div>
     {% endif %}
 
-    {% if btc.anchor and btc.anchor.txid %}
+    {% if btc.attestations %}
     <div class="anchor-compare mt-2">
-        <div class="anchor-compare-col">
-            <div class="form-label">Bitcoin TXID</div>
-            <div class="hash hash-full anchor-hash">{{ btc.anchor.txid }}</div>
-        </div>
-        <div class="anchor-compare-col">
-            <div class="form-label">Bitcoin Block</div>
-            <div class="hash hash-full anchor-hash">
-                {% if btc.anchor.block_height %}Height {{ btc.anchor.block_height }}{% else %}Height unknown{% endif %}
-                {% if btc.anchor.block_hash %} &middot; {{ btc.anchor.block_hash|hash_short:16 }}{% endif %}
+        <div class="anchor-compare-col" style="grid-column:1 / -1;">
+            <div class="form-label">Bitcoin Attestations</div>
+            {% for attestation in btc.attestations %}
+            <div class="hash hash-full anchor-hash" style="margin-bottom:0.5rem;">
+                TXID {{ attestation.txid|default:"Unknown" }}
+                {% if attestation.block_height %} &middot; Height {{ attestation.block_height }}{% endif %}
+                {% if attestation.block_hash %} &middot; Block {{ attestation.block_hash|hash_short:16 }}{% endif %}
             </div>
+            {% endfor %}
         </div>
     </div>
     {% endif %}
 
-    {% if btc.anchor and btc.anchor.explorer_url %}
+    {% if btc.attestations %}
     <div class="anchor-proof-link mt-2">
-        <a href="{{ btc.anchor.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
-            View Bitcoin transaction &#8599;
-        </a>
+        {% for attestation in btc.attestations %}
+            {% if attestation.explorer_url %}
+            <a href="{{ attestation.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                View Bitcoin TX {{ forloop.counter }} &#8599;
+            </a>
+            {% endif %}
+        {% endfor %}
     </div>
     {% endif %}
 

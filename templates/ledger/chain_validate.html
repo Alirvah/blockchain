@@ -65,16 +65,27 @@
 
         <div class="anchor-detail-grid mt-2">
             <div>
-                <div class="form-label">Bitcoin TXID</div>
+                <div class="form-label">Bitcoin Attestations</div>
                 <div class="text-mono text-dim" style="word-break:break-all;">
-                    {% if btc.anchor and btc.anchor.txid %}{{ btc.anchor.txid }}{% else %}—{% endif %}
+                    {% if btc.attestations %}
+                        {% for attestation in btc.attestations %}
+                            <div>{{ attestation.txid|default:"Unknown TXID" }}</div>
+                        {% endfor %}
+                    {% else %}
+                        —
+                    {% endif %}
                 </div>
             </div>
             <div>
-                <div class="form-label">Bitcoin Block</div>
+                <div class="form-label">Bitcoin Blocks</div>
                 <div class="text-dim" style="word-break:break-all;">
-                    {% if btc.anchor and btc.anchor.block_height %}Height {{ btc.anchor.block_height }}{% else %}Height unknown{% endif %}
-                    {% if btc.anchor and btc.anchor.block_hash %} &middot; {{ btc.anchor.block_hash }}{% endif %}
+                    {% if btc.attestations %}
+                        {% for attestation in btc.attestations %}
+                            <div>{% if attestation.block_height %}Height {{ attestation.block_height }}{% else %}Height unknown{% endif %}{% if attestation.block_hash %} &middot; {{ attestation.block_hash }}{% endif %}</div>
+                        {% endfor %}
+                    {% else %}
+                        Height unknown
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -83,7 +94,7 @@
             {% if btc.status == "verified" %}
                 This manifest has a Bitcoin-backed proof and it has been marked as verified.
             {% elif btc.status == "recorded" %}
-                A Bitcoin transaction has been recorded for the genesis manifest, but verification metadata is still incomplete.
+                {{ btc.attestations|length }} Bitcoin attestation{{ btc.attestations|length|pluralize }} {{ btc.attestations|length|pluralize:"has,have" }} been recorded for the genesis manifest, but self-verification metadata is still incomplete.
             {% elif btc.status == "proof_file_present" %}
                 An OpenTimestamps proof file exists locally. Upgrade and verify it to tie the proof to a specific Bitcoin block and record the transaction details.
             {% elif btc.status == "invalid" %}
@@ -93,11 +104,15 @@
             {% endif %}
         </div>
 
-        {% if btc.anchor and btc.anchor.explorer_url %}
+        {% if btc.attestations %}
         <div class="mt-2">
-            <a href="{{ btc.anchor.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
-                View Bitcoin transaction &#8599;
-            </a>
+            {% for attestation in btc.attestations %}
+                {% if attestation.explorer_url %}
+                <a href="{{ attestation.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                    View Bitcoin TX {{ forloop.counter }} &#8599;
+                </a>
+                {% endif %}
+            {% endfor %}
         </div>
         {% endif %}
         {% endwith %}

@@ -135,6 +135,38 @@ def load_genesis_anchor_proof(proof_path: Path | None = None) -> dict[str, Any]:
     return json.loads(proof_path.read_text(encoding="utf-8"))
 
 
+def _normalize_anchor_attestations(anchor: dict[str, Any] | None) -> list[dict[str, Any]]:
+    anchor = anchor or {}
+    attestations = anchor.get("attestations")
+    if isinstance(attestations, list):
+        normalized = [item for item in attestations if isinstance(item, dict)]
+    else:
+        normalized = []
+
+    # Backward compatibility with the older single-attestation shape.
+    if not normalized and any(
+        anchor.get(field) is not None
+        for field in ("txid", "block_height", "block_hash", "block_time", "explorer_url")
+    ):
+        normalized = [
+            {
+                "txid": anchor.get("txid"),
+                "block_height": anchor.get("block_height"),
+                "block_hash": anchor.get("block_hash"),
+                "block_time": anchor.get("block_time"),
+                "explorer_url": anchor.get("explorer_url"),
+            }
+        ]
+
+    def _sort_key(item: dict[str, Any]) -> tuple[int, str]:
+        height = item.get("block_height")
+        if isinstance(height, int):
+            return (height, item.get("txid") or "")
+        return (10**12, item.get("txid") or "")
+
+    return sorted(normalized, key=_sort_key)
+
+
 def get_bitcoin_anchor_report(manifest_path: Path | None = None) -> dict[str, Any]:
     manifest_path = manifest_path or get_anchor_manifest_path()
     proof_path = get_anchor_proof_path(manifest_path)
@@ -148,6 +180,8 @@ def get_bitcoin_anchor_report(manifest_path: Path | None = None) -> dict[str, An
         "ots_exists": ots_path.exists(),
         "subject": None,
         "anchor": None,
+        "attestations": [],
+        "primary_attestation": None,
         "verification": None,
         "error": None,
     }
@@ -167,10 +201,12 @@ def get_bitcoin_anchor_report(manifest_path: Path | None = None) -> dict[str, An
 
     anchor = report.get("anchor") or {}
     verification = report.get("verification") or {}
+    report["attestations"] = _normalize_anchor_attestations(anchor)
+    report["primary_attestation"] = report["attestations"][0] if report["attestations"] else None
 
     if verification.get("bitcoin_proof_verified"):
         report["status"] = "verified"
-    elif anchor.get("txid"):
+    elif report["attestations"]:
         report["status"] = "recorded"
     elif report["ots_exists"] or report["proof_exists"]:
         report["status"] = "proof_file_present"

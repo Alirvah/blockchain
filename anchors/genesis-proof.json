@@ -9,13 +9,34 @@
     "genesis_block_hash": "ff3e51cf8603b4e5cd0be77aa7075ae1d10ad7755ce2ed0d82ee3eb0adc2233a"
   },
   "bitcoin_anchor": {
-    "status": "proof_file_present",
+    "status": "recorded",
     "method": "opentimestamps",
     "network": "mainnet",
+    "attestations": [
+      {
+        "calendar": "https://alice.btc.calendar.opentimestamps.org",
+        "txid": "62dad682b9175dc6064dce379560262d9ffeadd7e3b7c777f1b35cf1a27a1afb",
+        "block_height": 941202,
+        "explorer_url": "https://mempool.space/tx/62dad682b9175dc6064dce379560262d9ffeadd7e3b7c777f1b35cf1a27a1afb"
+      },
+      {
+        "calendar": "https://bob.btc.calendar.opentimestamps.org",
+        "txid": "c5d4c016cae053bde2b244a1b0c679f6a53afa8368cc8d7e5f97f7ff67adab6b",
+        "block_height": 941203,
+        "explorer_url": "https://mempool.space/tx/c5d4c016cae053bde2b244a1b0c679f6a53afa8368cc8d7e5f97f7ff67adab6b"
+      }
+    ],
     "opentimestamps": {
       "ots_path": "anchors/genesis.json.ots",
-      "upgraded": false,
-      "calendar_urls": []
+      "upgraded": true,
+      "calendar_urls": [
+        "https://alice.btc.calendar.opentimestamps.org",
+        "https://bob.btc.calendar.opentimestamps.org",
+        "https://finney.calendar.eternitywall.com"
+      ],
+      "pending_calendar_urls": [
+        "https://finney.calendar.eternitywall.com"
+      ]
     }
   },
   "verification": {}

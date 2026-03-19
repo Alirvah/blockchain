@@ -5,7 +5,13 @@
     <div class="proof-trail">
         <div class="proof-node">
             <div class="proof-node-label">1. Genesis Manifest</div>
-            <div class="proof-node-title text-mono">anchors/genesis.json</div>
+            <div class="proof-node-title text-mono">
+                {% if manifest.view_url %}
+                <a href="{{ manifest.view_url }}" target="_blank" rel="noopener noreferrer" class="text-mono">anchors/genesis.json</a>
+                {% else %}
+                anchors/genesis.json
+                {% endif %}
+            </div>
             <div class="proof-node-sub">The PatCoin genesis state you are verifying.</div>
             <div class="proof-node-actions">
                 <a href="{% url 'download_anchor_artifact' 'manifest' %}" class="btn btn-secondary">Download</a>
@@ -17,7 +23,13 @@
         <div class="proof-trail-link">SHA-256 stamped</div>
         <div class="proof-node">
             <div class="proof-node-label">2. OpenTimestamps Proof</div>
-            <div class="proof-node-title text-mono">anchors/genesis.json.ots</div>
+            <div class="proof-node-title text-mono">
+                {% if ots.view_url %}
+                <a href="{{ ots.view_url }}" target="_blank" rel="noopener noreferrer" class="text-mono">anchors/genesis.json.ots</a>
+                {% else %}
+                anchors/genesis.json.ots
+                {% endif %}
+            </div>
             <div class="proof-node-sub">Portable proof file derived from the manifest hash.</div>
             <div class="proof-node-actions">
                 {% if ots.exists %}

@@ -471,6 +471,49 @@
                     No anchor file has been created yet.
                 {% endif %}
             </div>
+
+            <div class="anchor-detail-grid mt-2" style="padding:0 1rem 1rem;">
+                <div>
+                    <div class="form-label">OpenTimestamps Proof</div>
+                    <div class="text-dim">
+                        {% if anchor_report.bitcoin_proof.status == "verified" %}
+                            <span class="badge badge-confirmed">Verified</span>
+                            Bitcoin-backed proof verified.
+                        {% elif anchor_report.bitcoin_proof.status == "recorded" %}
+                            <span class="badge badge-sealed">Recorded</span>
+                            {{ anchor_report.bitcoin_proof.attestations|length }} Bitcoin attestation{{ anchor_report.bitcoin_proof.attestations|length|pluralize }} recorded.
+                        {% elif anchor_report.bitcoin_proof.status == "proof_file_present" %}
+                            <span class="badge badge-pending">Proof File Present</span>
+                            The `.ots` file exists, but Bitcoin attestations are still pending.
+                        {% elif anchor_report.bitcoin_proof.status == "invalid" %}
+                            <span class="badge badge-failed">Invalid</span>
+                            The proof metadata could not be parsed.
+                        {% else %}
+                            <span class="badge badge-default">Not Added</span>
+                            No OpenTimestamps proof has been recorded yet.
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <div class="form-label">Bitcoin Attestations</div>
+                    <div class="text-dim text-mono" style="word-break:break-all;">
+                        {% if anchor_report.bitcoin_proof.attestations %}
+                            {% for attestation in anchor_report.bitcoin_proof.attestations %}
+                                <div>
+                                    {% if attestation.block_height %}#{{ attestation.block_height }} &middot; {% endif %}
+                                    {% if attestation.explorer_url %}
+                                        <a href="{{ attestation.explorer_url }}" target="_blank" rel="noopener noreferrer" class="text-mono">{{ attestation.txid }}</a>
+                                    {% else %}
+                                        {{ attestation.txid|default:"Unknown TXID" }}
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="edu-demo-box" style="margin-top:1rem;">

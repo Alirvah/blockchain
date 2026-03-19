@@ -2317,29 +2317,67 @@ code, .mono { font-family: var(--font-mono); font-size: 0.875em; }
 
 .proof-trail {
     display: flex;
+    flex-direction: column;
     align-items: stretch;
-    gap: 0.9rem;
+    gap: 0.35rem;
     padding: 0 1.25rem 1rem;
-    overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    position: relative;
+}
+
+.proof-trail::before {
+    content: "";
+    position: absolute;
+    left: 2rem;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    width: 2px;
+    background: linear-gradient(
+        180deg,
+        rgba(255,255,255,0.14),
+        rgba(255,255,255,0.05)
+    );
+    border-radius: 999px;
+    pointer-events: none;
 }
 
 .proof-trail-link {
-    flex: 0 0 auto;
-    align-self: center;
+    align-self: stretch;
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--color-text-dim);
-    padding: 0.5rem 0.25rem;
+    padding: 0 0 0.15rem 3.25rem;
+    position: relative;
+}
+
+.proof-trail-link::before {
+    content: "";
+    position: absolute;
+    left: 2rem;
+    top: -0.05rem;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-left: -0.35rem;
+    border-radius: 50%;
+    background: var(--color-bg-card);
+    border: 2px solid var(--color-border);
+    box-shadow: 0 0 0 4px rgba(13, 15, 24, 0.85);
 }
 
 .proof-node {
-    flex: 0 0 260px;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
     padding: 0.95rem 1rem;
+    margin-left: 3.25rem;
+    min-width: 0;
+    max-width: calc(100% - 3.25rem);
+    position: relative;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
     background:
@@ -2348,11 +2386,40 @@ code, .mono { font-family: var(--font-mono); font-size: 0.875em; }
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
+.proof-node::before {
+    content: "";
+    position: absolute;
+    left: -1.6rem;
+    top: 1.15rem;
+    width: 1.05rem;
+    height: 2px;
+    background: var(--color-border);
+    border-radius: 999px;
+}
+
+.proof-node::after {
+    content: "";
+    position: absolute;
+    left: -2rem;
+    top: 0.84rem;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-left: -0.35rem;
+    border-radius: 50%;
+    background: var(--color-bg-card);
+    border: 2px solid var(--color-accent);
+    box-shadow: 0 0 0 4px rgba(13, 15, 24, 0.85);
+}
+
 .proof-node-bitcoin {
     border-color: rgba(255, 179, 71, 0.35);
     background:
         linear-gradient(180deg, rgba(255,179,71,0.08), rgba(255,179,71,0.02)),
         rgba(255,255,255,0.02);
+}
+
+.proof-node-bitcoin::after {
+    border-color: #ffb347;
 }
 
 .proof-node-label {
@@ -2498,15 +2565,43 @@ code, .mono { font-family: var(--font-mono); font-size: 0.875em; }
     .anchor-proof-link .btn { width: 100%; text-align: center; }
     .proof-trail {
         padding: 0 1rem 1rem;
-        flex-direction: column;
-        overflow-x: visible;
+        gap: 0.3rem;
+    }
+    .proof-trail::before {
+        left: 1.95rem;
     }
     .proof-trail-link {
-        align-self: flex-start;
-        padding: 0;
+        padding: 0 0 0.15rem 3.2rem;
+        font-size: 0.67rem;
+        letter-spacing: 0.06em;
+    }
+    .proof-trail-link::before {
+        left: 1.95rem;
+        width: 0.65rem;
+        height: 0.65rem;
+        margin-left: -0.325rem;
     }
     .proof-node {
-        flex-basis: auto;
+        margin-left: 3.2rem;
+        width: auto;
+        max-width: calc(100% - 3.2rem);
+    }
+    .proof-node::before {
+        left: -1.55rem;
+        width: 1rem;
+    }
+    .proof-node::after {
+        left: -1.95rem;
+        top: 0.85rem;
+        width: 0.65rem;
+        height: 0.65rem;
+        margin-left: -0.325rem;
+    }
+    .proof-node-title {
+        font-size: 0.8rem;
+    }
+    .proof-node-sub {
+        font-size: 0.74rem;
     }
     .proof-node-actions {
         flex-direction: column;

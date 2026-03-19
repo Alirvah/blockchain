@@ -396,6 +396,12 @@
             that wrote the anchor file, and compare the hash inside it to the hash in the live database.
             If they match, the genesis block &mdash; the root of trust &mdash; has not been replaced.
         </p>
+        <p class="edu-text">
+            PatCoin goes one step further: the same genesis manifest can also be wrapped in an
+            <strong>OpenTimestamps proof</strong> file (<span class="text-mono text-accent">anchors/genesis.json.ots</span>),
+            which can later resolve to one or more <strong>Bitcoin attestations</strong>. That gives users a path from the
+            local manifest, to a public Git commit, to a public Bitcoin transaction.
+        </p>
 
         <div class="edu-demo-box">
             <div class="edu-demo-label">Live Anchor Status</div>
@@ -465,6 +471,58 @@
                     No anchor file has been created yet.
                 {% endif %}
             </div>
+        </div>
+
+        <div class="edu-demo-box" style="margin-top:1rem;">
+            <div class="edu-demo-label">Proof Trail to Bitcoin</div>
+            <div class="proof-trail" style="padding:1rem;">
+                <div class="proof-node">
+                    <div class="proof-node-label">1. Manifest</div>
+                    <div class="proof-node-title text-mono">anchors/genesis.json</div>
+                    <div class="proof-node-sub">The JSON file that captures the genesis state.</div>
+                </div>
+                <div class="proof-trail-link">stamped as</div>
+                <div class="proof-node">
+                    <div class="proof-node-label">2. OpenTimestamps Proof</div>
+                    <div class="proof-node-title text-mono">anchors/genesis.json.ots</div>
+                    <div class="proof-node-sub">
+                        {% if anchor_report.bitcoin_proof.ots_exists %}
+                            The portable proof file exists and can be downloaded from the app or Git.
+                        {% else %}
+                            No local .ots proof file is present yet.
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="proof-trail-link">anchored into</div>
+                {% if anchor_report.bitcoin_proof.attestations %}
+                    {% for attestation in anchor_report.bitcoin_proof.attestations %}
+                    <div class="proof-node proof-node-bitcoin">
+                        <div class="proof-node-label">3. Bitcoin Attestation {{ forloop.counter }}</div>
+                        <div class="proof-node-title text-mono">{{ attestation.txid|default:"Unknown TXID" }}</div>
+                        <div class="proof-node-sub">
+                            {% if attestation.block_height %}Block {{ attestation.block_height }}{% else %}Block height unavailable{% endif %}
+                            {% if attestation.calendar %} via {{ attestation.calendar }}{% endif %}
+                        </div>
+                        {% if attestation.explorer_url %}
+                        <div class="proof-node-actions">
+                            <a href="{{ attestation.explorer_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Open Transaction &#8599;</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="proof-node proof-node-bitcoin">
+                        <div class="proof-node-label">3. Bitcoin Attestation</div>
+                        <div class="proof-node-title">Pending</div>
+                        <div class="proof-node-sub">The OpenTimestamps proof exists, but no Bitcoin attestation has been recorded yet.</div>
+                    </div>
+                {% endif %}
+            </div>
+            <p class="edu-text" style="padding:0 1rem 1rem;">
+                On the main verification pages, users can download both files from the app, compare them to the committed Git copies,
+                and upload them manually to <a href="https://opentimestamps.org/" target="_blank" rel="noopener noreferrer">OpenTimestamps.org</a>
+                for an independent check.
+            </p>
         </div>
     </div>
 </div>

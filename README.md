@@ -33,7 +33,24 @@ Transfers use PostgreSQL row-level locking (`SELECT ... FOR UPDATE`) on the send
 
 The genesis block's state (block hash, treasury wallet ID, mint amount) is exported to a JSON manifest at `anchors/genesis.json` and committed to Git. The system continuously compares live database state against this anchor, and optionally verifies the anchor's Git commit exists on the remote. This provides tamper detection: if someone modifies the genesis block or treasury, the mismatch is flagged.
 
-If you anchor that manifest to Bitcoin, record the proof metadata separately in `anchors/genesis-proof.json`. That companion file is the place to store the Bitcoin transaction ID, block details, and either `OP_RETURN` payload data or OpenTimestamps proof metadata without changing the canonical genesis manifest.
+If you anchor that manifest to Bitcoin, record the proof metadata separately in `anchors/genesis-proof.json`. That companion file stores the OpenTimestamps metadata, Git/download links, and one or more Bitcoin attestations without changing the canonical genesis manifest.
+
+The current proof path looks like this:
+
+```text
+anchors/genesis.json
+  -> hash stamped into
+anchors/genesis.json.ots
+  -> upgraded into one or more Bitcoin attestations
+Bitcoin transaction(s)
+```
+
+The web UI exposes this proof trail on the provenance, explorer, and chain validation pages. Users can:
+- download `anchors/genesis.json` and `anchors/genesis.json.ots` directly from the app
+- open the committed Git copies of those same files
+- see whether the local files match the committed Git blobs byte-for-byte
+- follow links from the OpenTimestamps proof to the recorded Bitcoin transaction(s)
+- manually upload the file pair to `https://opentimestamps.org/` for independent checking
 
 ### Provenance Tracing
 
@@ -193,7 +210,15 @@ docker compose exec web python manage.py export_genesis_anchor
 
 # Verify genesis anchor matches live database
 docker compose exec web python manage.py verify_genesis_anchor
+
+# Upgrade an OpenTimestamps proof once the calendars have anchored it
+docker compose exec web ots upgrade /app/anchors/genesis.json.ots
+
+# Inspect the OpenTimestamps proof structure and any recorded Bitcoin attestations
+docker compose exec web ots info /app/anchors/genesis.json.ots
 ```
+
+If `ots upgrade` completes successfully, the `.ots` file may contain multiple Bitcoin attestations from different calendars. In that case, `anchors/genesis-proof.json` should store them under `bitcoin_anchor.attestations`.
 
 ---
 
